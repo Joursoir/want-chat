@@ -8,7 +8,7 @@ OBJECTS = client.o
 all: client
 
 client:
-	g++ $(CPPFLAGS) $(SOURCES) -o client
+	$(CPP) $(CPPFLAGS) $(SOURCES) -o client
 
 clean:
 	rm -rf src/client/client.o client 

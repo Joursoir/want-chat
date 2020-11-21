@@ -1,107 +1,90 @@
-#include <unistd.h> // for close
-#include <string>
-#include <cstring>
-#include <netinet/in.h> // sockaddr_in
-#include <sys/types.h> // for bind, connect
-#include <sys/socket.h> // for bind, connect
-#include <netinet/in.h> // for iten_aton, iten_ntoa
-#include <arpa/inet.h> // for iten_aton, iten_ntoa
-#include <fcntl.h> // for fcntl
+#include <ncurses.h>
+#include <string.h>
+#include <unistd.h>
 
+#include "user.hpp"
+
+#define EXIT_BUTTON 4
 #define SERVER_IP "127.0.0.1"
 static int port = 7777;
 
+int showMainMenu(int max_row, int max_col)
+{
+	int num_items = 5;
+	const char *items[num_items] = {
+		"Connect to room",
+		"Create room",
+		"Help",
+		"About WantChat",
+		"Exit"
+	};
+
+	int height_menu = num_items + 2;
+	int width_menu = strlen(items[0]) + 2;
+
+	SelectionMenu main_menu = SelectionMenu("Hello. Welcome to \
+		WantChat", items, num_items, height_menu, width_menu,
+		(max_row-height_menu)/2, (max_col-width_menu)/2, 0);
+	main_menu.Update();
+
+	keypad(main_menu.GetWindow(), true);
+	int choice = main_menu.Handling();
+	main_menu.Hide();
+	return choice;
+	// дескриптор будет вызван после выхода из функции неявно
+}
+
 int main(int argc, char *argv[])
 {
-	int client = socket(AF_INET, SOCK_STREAM, 0);
-	if(client == -1) {
-		perror("socket");
+	initscr();
+	cbreak();
+	noecho();
+	// keypad(stdscr, TRUE);
+	curs_set(false);
+
+	int rows, columns;
+	getmaxyx(stdscr, rows, columns); 
+	if(rows != 24 || columns != 80) {
+		endwin();
+		printf("Please use terminal with size 24x80\n");
 		return 1;
 	}
 
-	// remove "port sticking" aka socket in TIME_WAIT
-	int opt = 1;
-	setsockopt(client, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-
-	/* call bind optional, the system chooses
-		the address automatically */
-
-	struct sockaddr_in server_adress;
-	server_adress.sin_family = AF_INET;
-	server_adress.sin_port = htons(port);
-	if(!inet_aton(SERVER_IP, &(server_adress.sin_addr))) {
-		perror("inet_aton");
-		return 1;
-	}
-	
-	int res = connect(client, (struct sockaddr*) &server_adress,
-		sizeof(server_adress));
-	if(res == -1) {
-		perror("connect");
+	Client *user = Client::Start(SERVER_IP, port);
+	if(!user) {
+		endwin();
+		perror("client");
 		return 1;
 	}
 
-	printf("=> Connection to server %s with port number: %d\n",
-		inet_ntoa(server_adress.sin_addr), port);
+	int choice;
+	while( (choice = showMainMenu(rows, columns)) != EXIT_BUTTON)
+	{
+		switch(choice)
+		{
+			case 0: {
+				ChatRoom *room = new ChatRoom();
+				user->Run(room);
 
-	// work with server
-	char buffer[1024];
-	memset(buffer, 0, sizeof(buffer)); // clear
-
-	int fd_stdin = STDIN_FILENO;
-	const int flags = fcntl(fd_stdin, F_GETFL, 0);
-	fcntl(fd_stdin, F_SETFL, flags | O_NONBLOCK);
-
-	bool exit = false;
-	do {
-		struct timeval *timeout;
-		timeout->tv_sec = 0;
-		timeout->tv_usec = 5000000;
-
-		fd_set rds, wrs;
-		FD_ZERO(&rds);
-		FD_ZERO(&wrs);
-
-		FD_SET(client, &rds);
-
-		int val = read(fd_stdin, buffer, sizeof(buffer));
-		if(val > 0) FD_SET(fd_stdin, &wrs);
-
-		res = select(client+1, &rds, &wrs, 0, timeout);
-		if(res < 0) {
-			if(errno == EINTR)
-				continue;
-			else {
-				perror("select");
+				delete room;
 				break;
 			}
 		}
+	}
 
-		if(res > 0) {
-			if(FD_ISSET(fd_stdin, &wrs)) // if client want to send any message
-			{
-				if(buffer[0] == '#') // exit
-					exit = true;
-				else write(client, buffer, strlen(buffer)*sizeof(char));
-
-				memset(buffer, 0, sizeof(buffer)); // clear
-			}
-			if(FD_ISSET(client, &rds)) // if server want to send any message
-			{
-				read(client, buffer, sizeof(buffer));
-
-				printf("%s", buffer);
-				getchar(); /* FIXME: if you remove this thing,
-					then output will not be produced only
-					if you add '\n' to the end of the line */
-
-				memset(buffer, 0, sizeof(buffer)); // clear
-			}
-		}
-	} while (!exit);
-
-	printf("=> GoodBye...\n");
-
-	close(client);
+	endwin();
 	return 0;
 }
+
+	/*WINDOW *chat = newwin(21, 59, 0, 0);
+	box(chat, 0, 0);
+	wrefresh(chat);
+
+	WINDOW *players = newwin(21, 20, 0, 60);
+	box(players, 0, 0);
+	wrefresh(players);
+
+	WINDOW *input = newwin(2, 80, 22, 0);
+	//box(input, ' ', ' ');
+	wmove(input, 0, 2);
+	wrefresh(input);*/
