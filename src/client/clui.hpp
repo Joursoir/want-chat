@@ -9,10 +9,13 @@ class Interface_wc {
 	WINDOW *w;
 	int ny, nx;
 	int beg_y, beg_x;
+	int ch_line;
 public:
 	Interface_wc(int num_y, int num_x, int by, int bx, char ch);
 
 	WINDOW *GetWindow() { return w; }
+	void SetCursor(int y, int x) { wmove(w, y, x); }
+	void Clear(bool full);
 	void Update() { wrefresh(w); }
 	void Delete() { delwin(w); }
 
@@ -37,12 +40,19 @@ class ChatRoom {
 	Interface_wc *players;
 	Interface_wc *input;
 	int i_nx, i_ny;
+
+	struct message {
+		char msg[300];
+		int num_lines; // number of lines
+		message *prev;
+	};
+	message *first;
 public:
 	ChatRoom();
 	~ChatRoom();
 
 	// for chat:
-	void PrintMessage(const char *msg);
+	void AddMessage(char *msg);
 
 	// for players:
 	//void AddPlayer()
@@ -50,8 +60,15 @@ public:
 	// for input:
 	bool AddCharToSendMsg(char ch);
 	bool RemoveCharFromMsg();
+	void InputClear() { input->Clear(false); }
+	void SetInputCursor(int y, int x);
 
-	WINDOW *GetWin() { return input->GetWindow(); }
+	WINDOW *GetInputWin() { return input->GetWindow(); }
+	WINDOW *GetChatWin() { return chat->GetWindow(); }
+private:
+	// for chat:
+	void ChatRedraw();
+	void PrintMessage(int line, message *m);
 };
 
 #endif

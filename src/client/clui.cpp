@@ -1,31 +1,40 @@
 #include <string.h>
 #include <ncurses.h>
 
+#include <unistd.h>
 #include "clui.hpp"
 
-#define CHAT_WIDTH 20
-#define CHAT_HEIGHT 59
+#define CHAT_HEIGHT 20
+#define CHAT_WIDTH 59
 #define PLAYERS_WIDTH 20
 #define PLAYERS_HEIGHT 20
-#define INPUT_WIDTH 4
-#define INPUT_HEIGHT 80
+#define INPUT_HEIGHT 4
+#define INPUT_WIDTH 80
 
-#define MAXLEN_MSG 158
+const int maxlen_msg_input = (INPUT_WIDTH - 2) * 2;
+const int maxlen_msg_chat = (CHAT_WIDTH - 4) * 2;
 
 Interface_wc::Interface_wc(int num_y, int num_x, int by,
-	int bx, char ch)
+	int bx, char ch) : ny(num_y), nx(num_x), beg_y(by),
+	beg_x(bx), ch_line(ch)
 {
-	w = newwin(num_y, num_x, by, bx);
-	box(w, ch, ch);
+	w = newwin(ny, nx, beg_y, beg_x);
+	box(w, ch_line, ch_line);
 	this->Update();
 }
 
 void Interface_wc::Hide()
 {
-	werase(this->GetWindow()); // clear
-
+	this->Clear(true);
 	this->Update();
 	this->Delete();
+}
+
+void Interface_wc::Clear(bool full)
+{
+	werase(this->GetWindow());
+	if(!full)
+		box(this->GetWindow(), ch_line, ch_line);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -71,27 +80,13 @@ int SelectionMenu::Handling()
 
 ////////////////////////////////////////////////////////////////////////
 
-ChatRoom::ChatRoom()
+ChatRoom::ChatRoom() : first(0)
 {
-	chat = new Interface_wc(CHAT_WIDTH, CHAT_HEIGHT, 0, 0, 0);
-	players = new Interface_wc(PLAYERS_WIDTH, PLAYERS_HEIGHT, 0, 60, 0);
-	input = new Interface_wc(INPUT_WIDTH, INPUT_HEIGHT, 20, 0, 0);
+	chat = new Interface_wc(CHAT_HEIGHT, CHAT_WIDTH, 0, 0, 0);
+	players = new Interface_wc(PLAYERS_HEIGHT, PLAYERS_WIDTH, 0, 60, 0);
+	input = new Interface_wc(INPUT_HEIGHT, INPUT_WIDTH, 20, 0, 0);
 	i_nx = 1;
 	i_ny = 1;
-
-	/* WINDOW *newwin(int nlines, int ncols, int begin_y, int begin_x) */
-	/*WINDOW *chat = newwin(20, 59, 0, 0);
-	box(chat, 0, 0);
-	wrefresh(chat);
-
-	WINDOW *players = newwin(20, 20, 0, 60);
-	box(players, 0, 0);
-	wrefresh(players);
-
-	WINDOW *input = newwin(4, 80, 20, 0);
-	box(input, 0, 0);
-	wmove(input, 1, 1);
-	wrefresh(input);*/
 }
 
 ChatRoom::~ChatRoom()
@@ -102,27 +97,92 @@ ChatRoom::~ChatRoom()
 		delete players;
 	if(input)
 		delete input;
+
+	// #TODO:
+	/* if(first) ... delete message */
 }
 
-void ChatRoom::PrintMessage(const char *msg)
+void ChatRoom::AddMessage(char *msg)
 {
-	// если msg <= **, то одна строка
-	// иначе 2 строки
-	WINDOW *win = chat->GetWindow();
-	wmove(win, 1, 2);
-	wprintw(win, msg);
+	message *recent_msg = new message;
+
+	int lines = 1;
+	if(strlen(msg) > maxlen_msg_chat/2)
+		lines = 2;
+
+	strcpy(recent_msg->msg, msg);
+	recent_msg->num_lines = lines;
+
+	recent_msg->prev = first;
+	first = recent_msg;
+
+	ChatRedraw();
+}
+
+void ChatRoom::ChatRedraw()
+{
+	if(!first)
+		return;
+
+	/*wprintw(chat->GetWindow(), "redraw");
+	chat->Update();
+	sleep(3);*/
+
+	chat->Clear(false);
+	int available_lines = CHAT_HEIGHT - 2;
+	bool remove = 0;
+	message *tmp;
+
+	for(tmp = first; tmp; tmp = tmp->prev) {
+		if(available_lines >= tmp->num_lines) {
+			PrintMessage(available_lines, tmp);
+			available_lines -= tmp->num_lines;
+		}
+		// #TODO:
+		/* delete */
+
+	}
 
 	chat->Update();
 }
 
+void ChatRoom::PrintMessage(int line, message *m)
+{
+	WINDOW *win = this->GetChatWin();
+	if(m->num_lines == 1) {
+		wmove(win, line, 2);
+		wprintw(win, m->msg);
+	}
+	else {
+		wmove(win, line-1, 2);
+		// print a half of message:
+		int len_fline = maxlen_msg_chat/2;
+
+
+		char *temp = new char[len_fline+1];
+		// memccpy(void *restrict s1, const void *restrict s2, int c, size_t n);
+		memcpy(temp, m->msg, sizeof(char) * len_fline);
+		temp[len_fline] = '\0';
+		wprintw(win, temp);
+
+		int last_len_msg = strlen(m->msg) - len_fline;
+		memcpy(temp, m->msg, sizeof(char) * (last_len_msg+1));
+		temp[last_len_msg] = '\0';
+		wmove(win, line, 2);
+		wprintw(win, temp);
+
+		delete[] temp;
+	}
+}
+
 bool ChatRoom::AddCharToSendMsg(char ch)
 {
-	if(i_ny == 2 && i_nx == MAXLEN_MSG/2-1)
+	if(i_ny == 2 && i_nx == maxlen_msg_input/2-1)
 		return 0;
 
 	mvwaddch(input->GetWindow(), i_ny, i_nx, ch);
 	i_nx++;
-	if(i_nx >= MAXLEN_MSG/2) {
+	if(i_nx >= maxlen_msg_input/2-1) {
 		if(i_ny == 1) {
 			i_ny++;
 			i_nx = 1;
@@ -144,11 +204,18 @@ bool ChatRoom::RemoveCharFromMsg()
 	i_nx--;
 	if(i_nx < 1) {
 		i_ny--;
-		i_nx = MAXLEN_MSG/2-1;
+		i_nx = maxlen_msg_input/2-1;
 	}
 	mvwaddch(input->GetWindow(), i_ny, i_nx, ' ');
 	wmove(input->GetWindow(), i_ny, i_nx);
 
 	input->Update();
 	return 1;
+}
+
+void ChatRoom::SetInputCursor(int y, int x)
+{
+	input->SetCursor(y, x);
+	i_ny = y;
+	i_nx = x;
 }

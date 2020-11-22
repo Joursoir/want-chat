@@ -41,82 +41,82 @@ Client *Client::Start(const char* ip, int port)
 
 void Client::Run(ChatRoom *room)
 {
-	/*int fd_stdin = STDIN_FILENO;
-	const int flags = fcntl(fd_stdin, F_GETFL, 0);
-	fcntl(fd_stdin, F_SETFL, flags | O_NONBLOCK);*/
-
-	const int flags = fcntl(fd, F_GETFL, 0);
+	unsigned int usecs = 0125000;
+	int flags = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
-	nodelay(room->GetWin(), true);
+	nodelay(room->GetInputWin(), true);
 	curs_set(true);
 	do {
 		this->HandleButton(room);
 
 		int recive = read(fd, out_buffer, sizeof(out_buffer));
+
 		if(recive < 0) {
-			if(errno == EINTR || errno == EAGAIN) continue;
-			else break;
+			if(errno != EINTR && errno != EAGAIN)
+				break;
 		}
 		else if(recive > 0) {
-			room->PrintMessage(out_buffer);
+			room->AddMessage(out_buffer);
 		}
 
-		unsigned int usecs = 0125000;
 		usleep(usecs);
-
-		/*struct timeval timeout = { 0 };
-		timeout.tv_usec = 5000000;
-
-		fd_set rds, wrs;
-		FD_ZERO(&rds);
-		FD_ZERO(&wrs);
-
-		FD_SET(fd, &rds);
-
-		int val = read(fd_stdin, buffer, sizeof(buffer));
-		if(val > 0) FD_SET(fd_stdin, &wrs);
-
-		res = select(fd+1, &rds, &wrs, 0, &timeout);
-		if(res < 0) {
-			if(errno == EINTR) continue;
-			else break;
-		}
-		else if(res > 0) {
-			if(FD_ISSET(fd_stdin, &wrs)) // if client want to send any message
-			{
-				if(buffer[0] == '#') // exit
-					exit_flag = true;
-				else write(fd, buffer, strlen(buffer)*sizeof(char));
-			}
-			if(FD_ISSET(fd, &rds)) // if server want to send any message
-			{
-				read(fd, buffer, sizeof(buffer));
-				//getchar();
-			}
-		}*/
 	} while (!exit_flag);
 }
 
 void Client::HandleButton(ChatRoom *room)
 {
-	int key = wgetch(room->GetWin());
+	int key = wgetch(room->GetInputWin());
 	switch(key)
 	{
 		// ascii table 32...126
 		case ' '...'~': {
+			AddCharToBuffer(key);
 			room->AddCharToSendMsg(key);
 			break;
 		}
 		case '\n': { // send message
-			// some code
+			SendMessage();
+			room->InputClear();
+			room->SetInputCursor(1, 1);
 			break;
 		}
 		case key_backspace: {
+			RemoveCharFromBuffer();
 			room->RemoveCharFromMsg();
 			break;
 		}
 		default: break;
 	}
+}
 
+void Client::AddCharToBuffer(char ch)
+{
+	if(in_buf_used >= max_line_length-2) // we reserve 1 byte for '\0'
+		return;
+
+	in_buffer[in_buf_used] = ch;
+	in_buf_used++;
+}
+
+void Client::RemoveCharFromBuffer()
+{
+	if(in_buf_used <= 0)
+		return;
+
+	in_buffer[in_buf_used] = '\0';
+	in_buf_used--;
+}
+
+void Client::SendMessage()
+{
+	if(in_buf_used <= 0)
+		return;
+
+	in_buffer[in_buf_used] = '\n';
+	// if(max_line_length-2 < 0)
+
+	write(fd, in_buffer, (in_buf_used+1)*sizeof(char));
+	memset(in_buffer, 0, sizeof(in_buffer)); 
+	in_buf_used = 0;
 }
