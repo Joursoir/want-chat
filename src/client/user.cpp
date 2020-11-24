@@ -10,6 +10,7 @@
 
 #include "user.hpp"
 
+const int key_esc = 4;
 const int key_enter = 10;
 const int key_escape = 27;
 const int key_backspace = 127;
@@ -57,7 +58,11 @@ void Client::Run(ChatRoom *room)
 				break;
 		}
 		else if(recive > 0) {
+			/* warning: if we get a message >= maxlen_outbuf then
+			this code will not work */
+			out_buffer[recive-1] = '\0'; // change '\n' to '\0'
 			room->AddMessage(out_buffer);
+			memset(out_buffer, 0, recive);
 		}
 
 		usleep(usecs);
@@ -69,6 +74,10 @@ void Client::HandleButton(ChatRoom *room)
 	int key = wgetch(room->GetInputWin());
 	switch(key)
 	{
+		case key_esc: {
+			// #todo: exit
+			break;
+		}
 		// ascii table 32...126
 		case ' '...'~': {
 			AddCharToBuffer(key);
@@ -92,7 +101,7 @@ void Client::HandleButton(ChatRoom *room)
 
 void Client::AddCharToBuffer(char ch)
 {
-	if(in_buf_used >= max_line_length-2) // we reserve 1 byte for '\0'
+	if(in_buf_used >= maxlen_inbuf-1)
 		return;
 
 	in_buffer[in_buf_used] = ch;
@@ -114,9 +123,8 @@ void Client::SendMessage()
 		return;
 
 	in_buffer[in_buf_used] = '\n';
-	// if(max_line_length-2 < 0)
 
 	write(fd, in_buffer, (in_buf_used+1)*sizeof(char));
-	memset(in_buffer, 0, sizeof(in_buffer)); 
+	memset(in_buffer, 0, (in_buf_used+1)*sizeof(char)); 
 	in_buf_used = 0;
 }

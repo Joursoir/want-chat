@@ -22,19 +22,6 @@ public:
 	void Hide();
 };
 
-class SelectionMenu : public Interface_wc {
-	char const *title;
-	const char**choises;
-	int choises_number;
-	int current_choice;
-
-public:
-	SelectionMenu(char const *i_title, const char**i_choises, int choises_num,
-		int num_y, int num_x, int by, int bx, char ch);
-
-	int Handling();
-};
-
 class ChatRoom {
 	Interface_wc *chat;
 	Interface_wc *players;
