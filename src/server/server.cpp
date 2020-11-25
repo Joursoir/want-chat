@@ -2,6 +2,8 @@
 
 #include "chat.hpp"
 
+const int port = 3030;
+
 int main(int argc, char *argv[])
 {
 	/*	  Event-driven programming	  */
@@ -10,11 +12,11 @@ int main(int argc, char *argv[])
 		2) event handling 
 	*/
 	EventSelector *selector = new EventSelector;
-	/*ChatServer *serv = ChatServer::Start(selector, port);
+	Server *serv = Server::Start(selector, port);
 	if(!serv) {
 		perror("server");
 		return 1;
-	}*/
+	}
 	selector->Run();
 	return 0;
 }

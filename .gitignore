@@ -1,2 +1,5 @@
 architecture/
+src/client/client
+src/server/server
+src/server/hash*
 *.o

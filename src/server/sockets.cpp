@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stdio.h>
 
 #include "sockets.hpp"
 
@@ -78,7 +79,7 @@ void EventSelector::Run()
 {
     exit_flag = false;
     do {
-        int res = poll(fds, max_fd, -1);
+        int res = poll(fds, max_fd+1, -1);
 
         if(res < 0) {
         	if(errno == EINTR)
