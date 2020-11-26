@@ -1,9 +1,7 @@
 #include <string.h>
-#include <ncurses.h>
-
 #include <unistd.h>
+
 #include "clui.hpp"
-#include "../const_vars.hpp"
 
 #define CHAT_HEIGHT 20
 #define CHAT_WIDTH 59
@@ -42,6 +40,8 @@ ChatRoom::ChatRoom() : first(0)
 	chat = new Interface_wc(CHAT_HEIGHT, CHAT_WIDTH, 0, 0, 0);
 	players = new Interface_wc(PLAYERS_HEIGHT, PLAYERS_WIDTH, 0, 60, 0);
 	input = new Interface_wc(INPUT_HEIGHT, INPUT_WIDTH, 20, 0, 0);
+	nodelay(input->GetWindow(), true);
+	keypad(input->GetWindow(), true);
 	i_nx = 1;
 	i_ny = 1;
 }
@@ -59,7 +59,7 @@ ChatRoom::~ChatRoom()
 	/* if(first) ... delete message */
 }
 
-void ChatRoom::AddMessage(char *msg)
+void ChatRoom::AddMessage(char *msg, int type)
 {
 	message *recent_msg = new message;
 
@@ -70,6 +70,7 @@ void ChatRoom::AddMessage(char *msg)
 
 	strcpy(recent_msg->msg, msg);
 	recent_msg->num_lines = lines;
+	recent_msg->type = type;
 
 	recent_msg->prev = first;
 	first = recent_msg;
@@ -116,11 +117,14 @@ void ChatRoom::ChatRedraw()
 
 void ChatRoom::PrintMessage(int line, message *m)
 {
-	WINDOW *win = this->GetChatWin();
+	WINDOW *win = this->chat->GetWindow();
 	int need_print = m->num_lines;
 	int maxlen_oneline = CHAT_WIDTH-2;
 
 	while(need_print != 0) {
+		if(m->type == system_msg) wattron(win, A_ITALIC);
+		else wattron(win, A_BOLD);
+
 		wmove(win, line-need_print+1, 1);
 
 		char *tmp = new char[maxlen_oneline];
@@ -130,18 +134,21 @@ void ChatRoom::PrintMessage(int line, message *m)
 		wprintw(win, tmp);
 		need_print--;
 
+		if(m->type == system_msg) wattroff(win, A_ITALIC);
+		else wattroff(win, A_BOLD);
+		
 		delete[] tmp;
 	}
 }
 
 bool ChatRoom::AddCharToSendMsg(char ch)
 {
-	if(i_ny == 2 && i_nx == max_line_len/2-1)
+	if(i_ny == 2 && i_nx == max_usermsg_len/2-1)
 		return 0;
 
 	mvwaddch(input->GetWindow(), i_ny, i_nx, ch);
 	i_nx++;
-	if(i_nx >= max_line_len/2-1) {
+	if(i_nx >= max_usermsg_len/2-1) {
 		if(i_ny == 1) {
 			i_ny++;
 			i_nx = 1;
@@ -163,7 +170,7 @@ bool ChatRoom::RemoveCharFromMsg()
 	i_nx--;
 	if(i_nx < 1) {
 		i_ny--;
-		i_nx = max_line_len/2-1;
+		i_nx = max_usermsg_len/2-1;
 	}
 	mvwaddch(input->GetWindow(), i_ny, i_nx, ' ');
 	wmove(input->GetWindow(), i_ny, i_nx);

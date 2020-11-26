@@ -11,9 +11,8 @@ static int port = 3030;
 int main(int argc, char *argv[])
 {
 	initscr();
-	cbreak();
+	//raw();
 	noecho();
-	curs_set(false);
 
 	int rows, columns;
 	getmaxyx(stdscr, rows, columns); 

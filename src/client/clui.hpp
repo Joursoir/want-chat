@@ -4,6 +4,7 @@
 #define COMMANDLINEUI_H
 
 #include <ncurses.h>
+#include "../const_vars.hpp"
 
 class Interface_wc {
 	WINDOW *w;
@@ -29,8 +30,9 @@ class ChatRoom {
 	int i_nx, i_ny;
 
 	struct message {
-		char msg[300];
+		char msg[max_msg_len];
 		int num_lines; // number of lines
+		int type;
 		message *prev;
 	};
 	message *first;
@@ -39,19 +41,17 @@ public:
 	~ChatRoom();
 
 	// for chat:
-	void AddMessage(char *msg);
+	void AddMessage(char *msg, int type);
 
 	// for players:
 	//void AddPlayer()
 
 	// for input:
+	int InputGetch() { return wgetch(input->GetWindow()); }
 	bool AddCharToSendMsg(char ch);
 	bool RemoveCharFromMsg();
 	void InputClear() { input->Clear(false); }
 	void SetInputCursor(int y, int x);
-
-	WINDOW *GetInputWin() { return input->GetWindow(); }
-	WINDOW *GetChatWin() { return chat->GetWindow(); }
 private:
 	// for chat:
 	void ChatRedraw();

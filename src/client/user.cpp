@@ -1,19 +1,14 @@
 #include <string.h>
-#include <unistd.h> // for close
-#include <netinet/in.h> // for iten_aton, iten_ntoa, sockaddr_in
-#include <arpa/inet.h> // for iten_aton, iten_ntoa
+#include <unistd.h> 
+#include <netinet/in.h> // for sockaddr_in
+#include <arpa/inet.h> // for iten_aton
 #include <sys/types.h> // for bind, connect
 #include <sys/socket.h> // for bind, connect
-#include <fcntl.h> // for fcntl
-#include <cerrno> // for errno
+#include <fcntl.h>
+#include <cerrno>
 #include <stdio.h>
 
 #include "user.hpp"
-
-const int key_esc = 4;
-const int key_enter = 10;
-const int key_escape = 27;
-const int key_backspace = 127;
 
 Client *Client::Start(const char* ip, int port)
 {
@@ -42,27 +37,44 @@ Client *Client::Start(const char* ip, int port)
 
 void Client::Run(ChatRoom *room)
 {
-	unsigned int usecs = 0125000;
+	unsigned int usecs = 0100000;
 	int flags = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
-	nodelay(room->GetInputWin(), true);
-	curs_set(true);
 	do {
 		this->HandleButton(room);
 
-		int recive = read(fd, out_buffer, sizeof(out_buffer));
+		int recive = read(fd, out_buffer+out_buf_used,
+			sizeof(out_buffer)-out_buf_used);
 
 		if(recive < 0) {
-			if(errno != EINTR && errno != EAGAIN)
+			if(errno != EINTR && errno != EAGAIN) 
 				break;
 		}
-		else if(recive > 0) {
-			/* warning: if we get a message >= maxlen_outbuf then
+		else if(recive > 0)
+			out_buf_used += recive;
+
+		if(out_buf_used > 0) {
+			/* warning: if we get a (message without '\n') > max_msg_len then
 			this code will not work */
-			out_buffer[recive-1] = '\0'; // change '\n' to '\0'
-			room->AddMessage(out_buffer);
-			memset(out_buffer, 0, recive);
+			for(int i = 0; i < out_buf_used; i++) {
+				if(out_buffer[i] == '\n') {
+					out_buffer[i] = 0;
+
+					// in first char have may spec-symbol, check it:
+					int spec_symbol = usually_msg;
+					char *buf = out_buffer;
+					if(out_buffer[0] == '#') {
+						spec_symbol = system_msg;
+						buf += 1;
+					}
+
+					room->AddMessage(buf, spec_symbol);
+					memmove(out_buffer, out_buffer + i + 1, out_buf_used - i - 1);
+					out_buf_used -= i + 1;
+					break;
+				}
+			}
 		}
 
 		usleep(usecs);
@@ -71,15 +83,14 @@ void Client::Run(ChatRoom *room)
 
 void Client::HandleButton(ChatRoom *room)
 {
-	int key = wgetch(room->GetInputWin());
+	int key = room->InputGetch();
 	switch(key)
 	{
-		case key_esc: {
-			// #todo: exit
+		case key_escape: {
+			this->BreakLoop();
 			break;
 		}
-		// ascii table 32...126
-		case ' '...'~': {
+		case ' '...'~': { // ascii table 32...126
 			AddCharToBuffer(key);
 			room->AddCharToSendMsg(key);
 			break;
@@ -101,7 +112,7 @@ void Client::HandleButton(ChatRoom *room)
 
 void Client::AddCharToBuffer(char ch)
 {
-	if(in_buf_used >= maxlen_inbuf-1)
+	if(in_buf_used >= max_usermsg_len-1)
 		return;
 
 	in_buffer[in_buf_used] = ch;
