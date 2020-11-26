@@ -1,12 +1,15 @@
 #ifndef ROOMREALIZATION_H
 #define ROOMREALIZATION_H
 
+const int std_id_lobby = -1;
+
 class Server;
 class ChatSession;
 
 class ChatRoom {
     Server *the_server;
-    const bool it_lobby;
+    const int code;
+    // code == -1 it's lobby
 
     struct item {
         ChatSession *s;
@@ -14,15 +17,14 @@ class ChatRoom {
     };
     item *first;
 public:
-    ChatRoom(Server *i_server, bool i_lobby)
-        : the_server(i_server), it_lobby(i_lobby), first(0) {}
+    ChatRoom(Server *i_server, int id)
+        : the_server(i_server), code(id), first(0) {}
     ~ChatRoom();
 
     void SendAll(const char *msg, ChatSession *except = 0);
-    void LeaveMessage(ChatSession *except);
 
     void HandleMessage(ChatSession *ses, const char *str);
-    void HandleCommand(ChatSession *s, int cmd_counter,
+    void HandleCommand(ChatSession *ses, int cmd_counter,
         char **commands);
 
     void AddSession(ChatSession *ses);

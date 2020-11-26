@@ -8,7 +8,7 @@
 #include "chat.hpp"
 #include "rooms.hpp"
 
-static const int qlen_for_listen = 6;
+const int qlen_for_listen = 6;
 
 void ChatSession::Send(const char *msg)
 {
@@ -61,7 +61,6 @@ void ChatSession::ReadAndCheck()
     int rc = read(GetFd(), buffer+buf_used, sizeof(buffer)-buf_used);
     CONSOLE_LOG("readC return %d bytes\n", rc);
     if(rc < 1) {
-        the_master->LeaveMessage(this);
         the_master->CloseSession(this);
         return;
     }
@@ -94,18 +93,30 @@ void ChatSession::CheckLines()
     }
 }
 
-void ChatSession::ChangeName(const char *n_name)
+const char *ChatSession::GetName()
+{
+    if(name[0])
+        return name;
+    return 0;
+}
+
+void ChatSession::SetName(const char *n_name)
 {
     for(int i = 0; i < max_name_len; i++)
         name[i] = 0;
 
     strcpy(name, n_name);
     char *msg = new char[max_msg_len];
-    sprintf(msg, "Now your name is %s\n", name);
+    sprintf(msg, "#Your name: %s\n", name);
 
     this->Send(msg);
         
     delete[] msg;
+}
+
+void ChatSession::SetRoom(ChatRoom *new_master)
+{
+    this->the_master = new_master;
 }
 
 //////////////////////////////////////////////////////////////
@@ -114,7 +125,7 @@ Server::Server(EventSelector *sel, int fd)
     : FdHandler(fd), the_selector(sel)
 {
     the_selector->Add(this);
-    lobby = new ChatRoom(this, true);
+    lobby = new ChatRoom(this, std_id_lobby);
 }
 
 Server::~Server()
@@ -150,6 +161,14 @@ Server *Server::Start(EventSelector *sel, int port)
     return new Server(sel, in_d);
 }
 
+bool Server::RoomExist(int id) const
+{
+    if(!room[id])
+        return false;
+ 
+    return true;
+}
+
 void Server::Handle(bool r, bool w)
 {
     if(!r)
@@ -164,6 +183,24 @@ void Server::Handle(bool r, bool w)
     ChatSession *s = new ChatSession(lobby, sd);
     lobby->AddSession(s);
     the_selector->Add(s);
+
+    // welcome messages:
+    s->Send("#Welcome to WantChat!\n");
+    s->Send(" \n");
+    s->Send("#It is anonymous chat in retro-style 80s.\n");
+    s->Send("#Use our chat-client for more immersed.\n");
+    s->Send(" \n");
+    s->Send("#This project is open source :)\n");
+    s->Send("#Github: github.com/Joursoir/want-chat\n");
+    s->Send(" \n");
+    s->Send("#First, come up with a nickname using /name your_good_name\n");
+    s->Send("#Thereafter you can join to room using /join room_id\n");
+    s->Send("#You can find rooms using /rooms\n");
+    s->Send(" \n");
+    s->Send("#For more detailed info: /help. Good chatting!\n");
+    s->Send(" \n");
+
+
 }
 
 int Server::AddRoom()
@@ -178,19 +215,53 @@ int Server::AddRoom()
 	int id = -1;
 	for(int i = 0; i < room_len; i++) {
 		if(room[i] == 0) {
-			id = 0;
-			room[i] = new ChatRoom(this, false);
+			id = i;
+			room[i] = new ChatRoom(this, id);
+            break;
 		}
 	}
 
 	if(id == -1) {
 		ChatRoom **tmp = new ChatRoom*[room_len+1];
-		for(int i = 0; i < room_len; i++) {
+		for(int i = 0; i < room_len; i++)
 			tmp[i] = room[i];
-		}
-		tmp[room_len] = new ChatRoom(this, false);
+
+        id = room_len;
+		tmp[room_len] = new ChatRoom(this, id);
 		room_len += 1;
+
+        delete[] room;
+        room = tmp;
 	}
 
     return id;
+}
+
+bool Server::DeleteRoom(int id)
+{
+    if(!room[id])
+        return false;
+
+    delete room[id];
+    room[id] = 0;
+
+    return true;
+}
+
+void Server::GotoLobby(ChatRoom *cur_room, ChatSession *s)
+{
+    cur_room->RemoveSession(s);
+    lobby->AddSession(s);
+    s->SetRoom(lobby);
+}
+
+bool Server::ChangeSessionRoom(ChatRoom *cur_room, ChatSession *s, int id)
+{
+    if(id >= room_len || !room[id])
+        return false;
+
+    cur_room->RemoveSession(s);
+    room[id]->AddSession(s);
+    s->SetRoom(room[id]);
+    return true;
 }

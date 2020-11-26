@@ -27,19 +27,21 @@ class ChatSession : FdHandler {
 	void ReadAndIgnore();
     void ReadAndCheck();
     void CheckLines();
-public:
-    const char *GetName() const { return name; }
 
-    void ChangeName(const char *n_name);
+    void SetRoom(ChatRoom *new_master);
+public:
+    const char *GetName();
+
+    void SetName(const char *n_name);
     void Send(const char *msg);
 };
 
 class Server : public FdHandler {
     EventSelector *the_selector;
     ChatRoom **room;
-    ChatRoom *lobby;
-
     int room_len;
+
+    ChatRoom *lobby;
 
     Server(EventSelector *sel, int fd);
 public:
@@ -47,9 +49,13 @@ public:
 
     static Server *Start(EventSelector *sel, int port);
 
+    bool RoomExist(int id) const;
+
     int AddRoom();
-    // RemoveRoom();
-    // void AddSessionToRoom(ChatSession *s, int id);
+    bool DeleteRoom(int id); // call only if room is empty
+
+    void GotoLobby(ChatRoom *cur_room, ChatSession *s);
+    bool ChangeSessionRoom(ChatRoom *cur_room, ChatSession *s, int id);
     void CloseConnection(ChatSession *s)
         { the_selector->Remove(s); delete s; }
 private:
