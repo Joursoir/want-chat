@@ -14,12 +14,11 @@ class Client {
 
 	bool exit_flag;
 
-	Client(int i_fd)
-		: fd(i_fd), in_buf_used(0), out_buf_used(0) { }
+	Client(int i_fd, char *username);
 public:
 	~Client() { close(fd); }
 
-	static Client *Start(const char* ip, int port);
+	static Client *Start(const char* ip, int port, char *username);
 	void Run(ChatRoom *room);
 	void BreakLoop() { exit_flag = true; }
 	void HandleButton(ChatRoom *room);

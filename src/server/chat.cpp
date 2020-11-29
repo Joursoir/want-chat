@@ -10,10 +10,24 @@
 
 const int qlen_for_listen = 6;
 
-void ChatSession::Send(const char *msg)
+void ChatSession::Send(const char *msg, const int spec_msg)
 {
-    CONSOLE_LOG("%s", msg);
-    write(GetFd(), msg, strlen(msg));
+    int len = strlen(msg);
+    char *tmp_msg = new char[len+1+2]; // for spec_symb + \n
+
+    if(spec_msg == usual_msg)
+        sprintf(tmp_msg, "%s\n", msg);
+    else
+    {
+        char spec;
+        if(spec_msg == system_msg) spec = system_char;
+        sprintf(tmp_msg, "%c%s\n", spec, msg);
+    }
+
+    CONSOLE_LOG("%s", tmp_msg);
+    write(GetFd(), tmp_msg, strlen(tmp_msg));
+
+    delete[] tmp_msg;
 }
 
 void ChatSession::Handle(bool r, bool w)
@@ -102,16 +116,7 @@ const char *ChatSession::GetName()
 
 void ChatSession::SetName(const char *n_name)
 {
-    for(int i = 0; i < max_name_len; i++)
-        name[i] = 0;
-
     strcpy(name, n_name);
-    char *msg = new char[max_msg_len];
-    sprintf(msg, "#Your name: %s\n", name);
-
-    this->Send(msg);
-        
-    delete[] msg;
 }
 
 void ChatSession::SetRoom(ChatRoom *new_master)
@@ -125,7 +130,7 @@ Server::Server(EventSelector *sel, int fd)
     : FdHandler(fd), the_selector(sel)
 {
     the_selector->Add(this);
-    lobby = new ChatRoom(this, std_id_lobby);
+    lobby = new ChatRoom(this, std_id_lobby, 0);
 }
 
 Server::~Server()
@@ -183,27 +188,9 @@ void Server::Handle(bool r, bool w)
     ChatSession *s = new ChatSession(lobby, sd);
     lobby->AddSession(s);
     the_selector->Add(s);
-
-    // welcome messages:
-    s->Send("#Welcome to WantChat!\n");
-    s->Send(" \n");
-    s->Send("#It is anonymous chat in retro-style 80s.\n");
-    s->Send("#Use our chat-client for more immersed.\n");
-    s->Send(" \n");
-    s->Send("#This project is open source :)\n");
-    s->Send("#Github: github.com/Joursoir/want-chat\n");
-    s->Send(" \n");
-    s->Send("#First, come up with a nickname using /name your_good_name\n");
-    s->Send("#Thereafter you can join to room using /join room_id\n");
-    s->Send("#You can find rooms using /rooms\n");
-    s->Send(" \n");
-    s->Send("#For more detailed info: /help. Good chatting!\n");
-    s->Send(" \n");
-
-
 }
 
-int Server::AddRoom()
+int Server::AddRoom(char *password)
 {
 	if(!room) {
 		room_len = 16;
@@ -216,7 +203,7 @@ int Server::AddRoom()
 	for(int i = 0; i < room_len; i++) {
 		if(room[i] == 0) {
 			id = i;
-			room[i] = new ChatRoom(this, id);
+			room[i] = new ChatRoom(this, id, password);
             break;
 		}
 	}
@@ -227,7 +214,7 @@ int Server::AddRoom()
 			tmp[i] = room[i];
 
         id = room_len;
-		tmp[room_len] = new ChatRoom(this, id);
+		tmp[room_len] = new ChatRoom(this, id, password);
 		room_len += 1;
 
         delete[] room;
@@ -255,13 +242,23 @@ void Server::GotoLobby(ChatRoom *cur_room, ChatSession *s)
     s->SetRoom(lobby);
 }
 
-bool Server::ChangeSessionRoom(ChatRoom *cur_room, ChatSession *s, int id)
+handle_room_enter Server::ChangeSessionRoom(ChatRoom *cur_room,
+    ChatSession *s, int id, char *pass)
 {
-    if(id >= room_len || !room[id])
-        return false;
+    if(id < 0 || id >= room_len || !room[id])
+        return enter_noexist;
+
+    const char *secret_word = room[id]->GetSecretPass();
+    CONSOLE_LOG("s: %s; pass: %s\n", secret_word, pass);
+    if(secret_word != 0) {
+        if(!pass)
+            return enter_private;
+        if(strcmp(secret_word, pass) != 0)
+            return enter_uncorrect_pass;
+    }
 
     cur_room->RemoveSession(s);
     room[id]->AddSession(s);
     s->SetRoom(room[id]);
-    return true;
+    return enter_success;
 }

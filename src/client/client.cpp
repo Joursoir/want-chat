@@ -10,6 +10,11 @@ static int port = 3030;
 
 int main(int argc, char *argv[])
 {
+	if(argc < 2) {
+		printf("Usage: client *name*\n");
+		return 1;
+	}
+
 	initscr();
 	//raw();
 	noecho();
@@ -22,10 +27,10 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	Client *user = Client::Start(SERVER_IP, port);
+	Client *user = Client::Start(SERVER_IP, port, argv[1]);
 	if(!user) {
 		endwin();
-		perror("client");
+		perror("server");
 		return 1;
 	}
 

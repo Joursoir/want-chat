@@ -10,7 +10,24 @@
 
 #include "user.hpp"
 
-Client *Client::Start(const char* ip, int port)
+const int key_enter = 10;
+const int key_escape = 27;
+const int key_backspace = 127;
+
+//
+
+Client::Client(int i_fd, char *username) : fd(i_fd), in_buf_used(0),
+	out_buf_used(0)
+{
+	int len = strlen(username);
+	char *name = new char[len+2];
+	sprintf(name, "%s\n", username);
+
+	write(i_fd, name, strlen(name));
+	delete[] name;
+}
+
+Client *Client::Start(const char* ip, int port, char *username)
 {
 	int client;
 	client = socket(AF_INET, SOCK_STREAM, 0);
@@ -32,7 +49,7 @@ Client *Client::Start(const char* ip, int port)
 		sizeof(server_adress));
 	if(res == -1) return 0;
 
-	return new Client(client);
+	return new Client(client, username);
 }
 
 void Client::Run(ChatRoom *room)
@@ -41,6 +58,7 @@ void Client::Run(ChatRoom *room)
 	int flags = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
+	int cls = false;
 	do {
 		this->HandleButton(room);
 
@@ -53,6 +71,13 @@ void Client::Run(ChatRoom *room)
 		}
 		else if(recive > 0)
 			out_buf_used += recive;
+		else {
+			if(!cls) {
+				strcpy(out_buffer, "Server closed the connection. Use ESC to exit.");
+				room->AddMessage(out_buffer, system_msg);
+				cls = true;
+			}
+		}
 
 		if(out_buf_used > 0) {
 			/* warning: if we get a (message without '\n') > max_msg_len then
@@ -62,14 +87,14 @@ void Client::Run(ChatRoom *room)
 					out_buffer[i] = 0;
 
 					// in first char have may spec-symbol, check it:
-					int spec_symbol = usually_msg;
+					int spec_msg = usual_msg;
 					char *buf = out_buffer;
-					if(out_buffer[0] == '#') {
-						spec_symbol = system_msg;
+					if(out_buffer[0] == system_char) {
+						spec_msg = system_msg;
 						buf += 1;
 					}
 
-					room->AddMessage(buf, spec_symbol);
+					room->AddMessage(buf, spec_msg);
 					memmove(out_buffer, out_buffer + i + 1, out_buf_used - i - 1);
 					out_buf_used -= i + 1;
 					break;
