@@ -2,9 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "rooms.hpp"
-#include "chat.hpp"
+#include "ChatRoom.hpp"
+#include "ChatServer.hpp"
+#include "UserInfo.hpp"
 
+#define DB_BUFFER_SIZE 128
 #define USE_IN_ROOM 0
 #define USE_IN_LOBBY 1
 #define USE_ANYWHERE 2
@@ -22,13 +24,15 @@ struct cmd_info {
 	char usage[64];
 };
 
+const int cmd_id_help = 0;
 const int cmd_id_create = 1;
 const int cmd_id_join = 2;
 const int cmd_id_exit = 3;
 const int cmd_id_rooms = 4;
 
-const int cmd_count = 4;
+const int cmd_count = 5;
 const struct cmd_info cmd[cmd_count] = {
+	{cmd_id_help, "/help", hash("/help"), USE_ANYWHERE, 0, "Usage: /help"},
 	{cmd_id_create, "/create", hash("/create"), USE_IN_LOBBY, 0, "Usage: /create [pass-key]"},
 	{cmd_id_join, "/join", hash("/join"), USE_IN_LOBBY, 1, "Usage: /join *id* [pass-key]"},
 	{cmd_id_exit, "/exit", hash("/exit"), USE_IN_ROOM, 0, "Usage: /exit"},
@@ -37,7 +41,7 @@ const struct cmd_info cmd[cmd_count] = {
 	// IDEA: /clear - clear screen
 };
 
-ChatRoom::ChatRoom(Server *i_server, int id, char *pass)
+ChatRoom::ChatRoom(ChatServer *i_server, int id, char *pass)
         : the_server(i_server), code(id), first(0)
 {
 	if(pass)
@@ -50,53 +54,75 @@ ChatRoom::~ChatRoom()
 	while(first) {
         item *tmp = first;
         first = first->next;
-        the_server->CloseConnection(tmp->s);
+        the_server->CloseConnection(tmp->u);
         delete tmp;
     }
 }
 
-void ChatRoom::SendAll(const char *msg, ChatSession *except,
+void ChatRoom::SendAll(const char *msg, UserInfo *except,
 	const int spec_msg)
 {
     CONSOLE_LOG("Send message all: %s\n", msg);
     item *p;
     for(p = first; p; p = p->next)
-        if(p->s != except)
-            p->s->Send(msg, spec_msg);
+        if(p->u != except)
+            p->u->Send(msg, spec_msg);
 }
 
-void ChatRoom::HandleMessage(ChatSession *ses, const char *str)
+void ChatRoom::HandleMessage(UserInfo *u, const char *str)
 {
-	int status = ses->state;
+	int status = u->GetStatus();
 	if(status != no_wait) {
 		if(status == wait_name) {
 			// handle name, if OK - will send hello msg
 			int len = strlen(str);
 			if(len > max_name_len || len < min_name_len) {
-				ses->Send("Incorrect name. Name length from 3 to 18 chars");
-				CloseSession(ses);
+				u->Send("Incorrect name. Name length from 3 to 18 chars");
+				CloseSession(u);
 			}
 			if(checkForbiddenSymbols(str)) {
-				ses->Send("Incorrect name. You use forbidden symbols.");
-				CloseSession(ses);
+				u->Send("Incorrect name. You use forbidden symbols.");
+				CloseSession(u);
 			}
-			ses->SetName(str);
 
-			ses->Send("Welcome to WantChat!");
-		    ses->Send(" ");
-		    ses->Send("It is anonymous chat in retro-style 80s.");
-		    ses->Send("Use our chat-client for more immersed.");
-		    ses->Send(" ");
-		    ses->Send("This project is open source :)");
-		    ses->Send("Github: github.com/Joursoir/want-chat");
-		    ses->Send(" ");
-		    ses->Send("To join to room using /join room_id");
-		    ses->Send("You can find rooms using /rooms");
-		    ses->Send(" ");
-		    ses->Send("For more detailed info: /help. Good chatting!");
-		    ses->Send(" ");
+			//if(userInServer(char *nickname))
+			// проверить если кто-то с данным именем..
 
-			ses->state = no_wait;
+			u->SetName(str);
+
+			char *msg = new char[DB_BUFFER_SIZE];
+			sprintf(msg, "SELECT password FROM users WHERE name = '%s' LIMIT 1", str);
+			CONSOLE_LOG("%s\n", msg);
+			AnswerDB *ans = the_server->QuerySelect(msg);
+			if(ans) {
+				DB_ROW *row = ans->GetNextRow();
+
+				char *pass = 0;
+				if(row) {
+					pass = new char[max_player_lenpass];
+					strcpy(pass, (*row)[0]);
+
+					CONSOLE_LOG("account exist! \n");
+				}
+			}
+			else CONSOLE_LOG("account noexist :( \n");
+			delete[] msg;
+
+			u->Send("Welcome to WantChat!");
+		    u->Send(" ");
+		    u->Send("It is anonymous chat in retro-style 80s.");
+		    u->Send("Use our chat-client for more immersed.");
+		    u->Send(" ");
+		    u->Send("This project is open source :)");
+		    u->Send("Github: github.com/Joursoir/want-chat");
+		    u->Send(" ");
+		    u->Send("To join to room using /join room_id");
+		    u->Send("You can find rooms using /rooms");
+		    u->Send(" ");
+		    u->Send("For more detailed info: /help. Good chatting!");
+		    u->Send(" ");
+
+			u->SetStatus(no_wait);
 		}
 
 		return;
@@ -105,7 +131,7 @@ void ChatRoom::HandleMessage(ChatSession *ses, const char *str)
 	if(str[0] == '/') { // if user sent a command
 		int argc = 0;
 		char **argv = ParseToArg(str, argc);
-		this->HandleCommand(ses, argc, argv);
+		this->HandleCommand(u, argc, argv);
 
 		for(int i = 0; i < argc; i++)
 			delete[] argv[i];
@@ -113,16 +139,16 @@ void ChatRoom::HandleMessage(ChatSession *ses, const char *str)
 	}
 	else if(code != std_id_lobby) {
 	    char *msg = new char[max_msg_len];
-	    sprintf(msg, "%s: %s", ses->GetName(), str);
+	    sprintf(msg, "%s: %s", u->GetName(), str);
 
 	    this->SendAll(msg, 0, usual_msg);
 	    
 	    delete[] msg;
 	}
-	else ses->Send("In the lobby you can only write commands");
+	else u->Send("In the lobby you can only write commands");
 }
 
-void ChatRoom::HandleCommand(ChatSession *ses, int count,
+void ChatRoom::HandleCommand(UserInfo *u, int count,
 	char **argvar)
 {
 	unsigned long hash_cmd = -1;
@@ -137,27 +163,31 @@ void ChatRoom::HandleCommand(ChatSession *ses, int count,
 	}
 
 	if(what_command == -1)
-		return ses->Send("Unknown command. Use: /help");
+		return u->Send("Unknown command. Use: /help");
 
 	const char onlyroom_msg[] = "You can use this command only in rooms!";
 	const char onlylobby_msg[] = "You can use this command only in lobby!";
 
 	// scope of command:
 	if(cmd[what_command].lobby_cmd == USE_IN_ROOM && code == std_id_lobby)
-		return ses->Send(onlyroom_msg);
+		return u->Send(onlyroom_msg);
 	else if(cmd[what_command].lobby_cmd == USE_IN_LOBBY && code != std_id_lobby)
-		return ses->Send(onlylobby_msg);
+		return u->Send(onlylobby_msg);
 
 	// right usage:
 	if(cmd[what_command].min_argc > count-1)
-		return ses->Send(cmd[what_command].usage);
+		return u->Send(cmd[what_command].usage);
 
 	switch(cmd[what_command].id) {
+		case cmd_id_help: {
+			u->Send("Help info...");
+			break;
+		}
 		case cmd_id_create: {
 			char *pass = 0;
 			if(count > 1) {
 				if(strlen(argvar[1]) > max_room_lenpass)
-					return ses->Send("Maximum length of pass equals 24");
+					return u->Send("Maximum length of pass equals 24");
 				pass = argvar[1];
 			}
 			int id = the_server->AddRoom(pass);
@@ -167,28 +197,29 @@ void ChatRoom::HandleCommand(ChatSession *ses, int count,
 			char *cmsg = new char[strlen(fcmsg)+3+strlen(scmsg)+max_room_lenpass];
 			if(pass) sprintf(cmsg, "%s%d%s%s", fcmsg, id, scmsg, pass);
 			else sprintf(cmsg, "%s%d", fcmsg, id);
-			ses->Send(cmsg);
+			u->Send(cmsg);
 			delete[] cmsg;
 
-			the_server->ChangeSessionRoom(this, ses, id, pass);
+			the_server->ChangeSessionRoom(this, u, id, pass);
 			break;
 		}
 		case cmd_id_join: {
 			int id = atoi(argvar[1]);
 			char *pass = argvar[2]; // if count == 2, then argvar[2] = 0 
 
-			int h_status = the_server->ChangeSessionRoom(this, ses, id, pass);
+			int h_status = the_server->ChangeSessionRoom(this, u, id, pass);
 			if(h_status == enter_noexist)
-				return ses->Send("Room with that ID didn't exist");
+				return u->Send("Room with that ID didn't exist");
 			else if(h_status == enter_private)
-				return ses->Send("It is private room, join using password");
+				return u->Send("It is private room, join using password");
 			else if(h_status == enter_uncorrect_pass)
-				return ses->Send("Oops, this password is not valid");
+				return u->Send("Oops, this password is not valid");
 
+			u->Send("You has left the room");
 			break;
 		}
 		case cmd_id_exit: {
-			the_server->GotoLobby(this, ses);
+			the_server->GotoLobby(this, u);
 			break;
 		}
 		case cmd_id_rooms: {
@@ -206,11 +237,11 @@ const char *ChatRoom::GetSecretPass()
 	return 0;
 }
 
-void ChatRoom::AddSession(ChatSession *ses)
+void ChatRoom::AddSession(UserInfo *u)
 {
 	item *p = new item;
     p->next = first;
-    p->s = ses;
+    p->u = u;
     first = p;
 
     if(code == std_id_lobby)
@@ -219,39 +250,39 @@ void ChatRoom::AddSession(ChatSession *ses)
     const char welcome_msg[] = "Welcome to the room #";
 	const char entered_msg[] = " has entered the room";
 
-	const char *name = ses->GetName();
+	const char *name = u->GetName();
 
     char *wmsg = new char[sizeof(welcome_msg) + 2];
     sprintf(wmsg, "%s%d", welcome_msg, code);
-    ses->Send(wmsg);
+    u->Send(wmsg);
     delete[] wmsg;
 
     char *emsg = new char[strlen(name) + sizeof(entered_msg)];
     sprintf(emsg, "%s%s", name, entered_msg);
-    this->SendAll(emsg, ses);
+    this->SendAll(emsg, u);
    	delete[] emsg;
 
 }
 
-void ChatRoom::RemoveSession(ChatSession *ses)
+void ChatRoom::RemoveSession(UserInfo *u)
 {
 	if(code != std_id_lobby) {
 		const char left_msg[] = " has left the room";
-		const char *name = ses->GetName();
+		const char *name = u->GetName();
 
 	    int len = strlen(name);
 	    char *lmsg = new char[len + sizeof(left_msg) + 2];
 	    sprintf(lmsg, "%s%s", name, left_msg);
-	    this->SendAll(lmsg, ses);
+	    this->SendAll(lmsg, u);
 	    delete[] lmsg;
 	}
 
 	item **p;
 	for(p = &first; *p; p = &((*p)->next)) {
-		if( ((*p)->s) == ses ) {
+		if( ((*p)->u) == u ) {
 			item *tmp = *p;
 			*p = tmp->next;
-			// not delete ChatSession!
+			// not delete UserInfo!
 			delete tmp;
 			
 			if(code != std_id_lobby && !first)
@@ -262,11 +293,11 @@ void ChatRoom::RemoveSession(ChatSession *ses)
 	}
 }
 
-void ChatRoom::CloseSession(ChatSession *ses)
+void ChatRoom::CloseSession(UserInfo *u)
 {
-	Server *serv = the_server;
-	this->RemoveSession(ses);
-	serv->CloseConnection(ses);
+	ChatServer *serv = the_server;
+	this->RemoveSession(u);
+	serv->CloseConnection(u);
 }
 
 //////////////////////////////////////////////////////////////

@@ -5,38 +5,38 @@
 
 const int std_id_lobby = -1;
 const int max_room_lenpass = 24;
+const int max_player_lenpass = 24;
 
-class Server;
-class ChatSession;
+class ChatServer;
+class UserInfo;
 
 class ChatRoom {
-    Server *the_server;
+    ChatServer *the_server;
     const int code;
     // if code == std_id_lobby then it's lobby
-
     char secret_pass[max_room_lenpass];
 
     struct item {
-        ChatSession *s;
+        UserInfo *u;
         item *next;
     };
     item *first;
 public:
-    ChatRoom(Server *i_server, int id, char *pass);
+    ChatRoom(ChatServer *i_server, int id, char *pass);
     ~ChatRoom();
 
-    void SendAll(const char *msg, ChatSession *except = 0,
+    void SendAll(const char *msg, UserInfo *except = 0,
         const int spec_msg = system_msg);
 
-    void HandleMessage(ChatSession *ses, const char *str);
-    void HandleCommand(ChatSession *ses, int cmd_counter,
+    void HandleMessage(UserInfo *u, const char *str);
+    void HandleCommand(UserInfo *u, int cmd_counter,
         char **commands);
 
     const char *GetSecretPass();
 
-    void AddSession(ChatSession *ses);
-    void RemoveSession(ChatSession *ses);
-    void CloseSession(ChatSession *ses);
+    void AddSession(UserInfo *u);
+    void RemoveSession(UserInfo *u);
+    void CloseSession(UserInfo *u);
 };
 
 #endif

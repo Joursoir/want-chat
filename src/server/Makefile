@@ -1,6 +1,6 @@
 CPP = g++
-CPPFLAGS = -Wall -g
-SOURCES = server.cpp sockets.cpp chat.cpp rooms.cpp
+CPPFLAGS = -Wall -g $(shell mariadb_config --cflags --libs)
+SOURCES = main.cpp sockets.cpp ChatServer.cpp UserInfo.cpp UserInfo_io.cpp ChatRoom.cpp database.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = server
 
@@ -9,10 +9,10 @@ EXECUTABLE = server
 all: $(EXECUTABLE)
 
 clean:
-	rm -rf $(OBJECTS) $(EXECUTABLE)
+	@rm -rf $(OBJECTS) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CPP) $(CPPFLAGS) -o $(EXECUTABLE) $(OBJECTS)
+	@$(CPP) $(CPPFLAGS) -o $(EXECUTABLE) $(OBJECTS)
 
 $(OBJECTS):
-	$(CPP) -c $(CPPFLAGS) $(SOURCES)
+	@$(CPP) -c $(CPPFLAGS) $(SOURCES)
