@@ -16,14 +16,23 @@ ChatServer::ChatServer(EventSelector *sel, DatabaseManager *db, int fd)
 {
     the_selector->Add(this);
     lobby = new ChatRoom(this, std_id_lobby, 0);
+    talkers = new StorageOfUsers();
 }
 
 ChatServer::~ChatServer()
 {
-    if(room)
-        delete[] room;
+    // right delete this stuff?
+    if(room) {
+        for(int i = 0; i < room_len; i++)
+            DeleteRoom(i);
 
+        delete[] room;
+    }
     the_selector->Remove(this);
+
+    while(talkers->Disconnect())
+        ;
+    delete talkers;
 }
 
 ChatServer *ChatServer::Start(EventSelector *sel, DatabaseManager *db, int port)
@@ -134,6 +143,7 @@ handle_room_enter ChatServer::ChangeSessionRoom(ChatRoom *cur_room,
 
 void ChatServer::CloseConnection(UserInfo *u) 
 {
+    talkers->RemoveUser(u);
     the_selector->Remove(u);
     delete u;
 }
@@ -150,6 +160,65 @@ void ChatServer::Handle(bool r, bool w)
         return;
 
     UserInfo *u = new UserInfo(lobby, sd);
+    talkers->AddUser(u);
     lobby->AddSession(u);
     the_selector->Add(u);
+}
+
+///////////////////////////////////////////////////////////////
+
+StorageOfUsers::~StorageOfUsers()
+{
+    while(first) {
+        item *tmp = first;
+        first = first->next;
+        delete tmp;
+    }
+}
+
+void StorageOfUsers::SendAllUsers(const char *msg, UserInfo *except,
+    const int spec_msg)
+{
+    CONSOLE_LOG("Send message all: %s\n", msg);
+    item *p;
+    for(p = first; p; p = p->next)
+        if(p->u != except)
+            p->u->Send(msg, spec_msg);
+}
+
+void StorageOfUsers::AddUser(UserInfo *u)
+{
+    item *p = new item;
+    p->next = first;
+    p->u = u;
+    first = p;
+    online++;
+}
+
+void StorageOfUsers::RemoveUser(UserInfo *u)
+{
+    item **p;
+    for(p = &first; *p; p = &((*p)->next)) {
+        if( ((*p)->u) == u ) {
+            item *tmp = *p;
+            *p = tmp->next;
+            // not delete UserInfo!
+            online--;
+            delete tmp;
+            return;
+        }
+    }
+}
+
+UserInfo *StorageOfUsers::Disconnect()
+{
+    if(first) {
+        item *tmp = first;
+        first = first->next;
+        UserInfo *rn = tmp->u;
+        online--;
+        delete tmp;
+        return rn;
+    }
+    return 0;
 }

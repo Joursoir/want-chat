@@ -11,10 +11,6 @@
 #define USE_IN_LOBBY 1
 #define USE_ANYWHERE 2
 
-static char **ParseToArg(const char *input, int &arrc);
-static unsigned long hash(const char *str);
-static bool checkForbiddenSymbols(const char *str);
-
 struct cmd_info {
 	int id; // never -1 !!!
 	char name[15];
@@ -32,18 +28,19 @@ const int cmd_id_rooms = 4;
 
 const int cmd_count = 5;
 const struct cmd_info cmd[cmd_count] = {
-	{cmd_id_help, "/help", hash("/help"), USE_ANYWHERE, 0, "Usage: /help"},
-	{cmd_id_create, "/create", hash("/create"), USE_IN_LOBBY, 0, "Usage: /create [pass-key]"},
-	{cmd_id_join, "/join", hash("/join"), USE_IN_LOBBY, 1, "Usage: /join *id* [pass-key]"},
-	{cmd_id_exit, "/exit", hash("/exit"), USE_IN_ROOM, 0, "Usage: /exit"},
-	{cmd_id_rooms, "/rooms", hash("/rooms"), USE_IN_LOBBY, 0, "Usage: /rooms"} // print all public rooms
+	{cmd_id_help, "/help", ChatRoom::hash("/help"), USE_ANYWHERE, 0, "Usage: /help"},
+	{cmd_id_create, "/create", ChatRoom::hash("/create"), USE_IN_LOBBY, 0, "Usage: /create [pass-key]"},
+	{cmd_id_join, "/join", ChatRoom::hash("/join"), USE_IN_LOBBY, 1, "Usage: /join *id* [pass-key]"},
+	{cmd_id_exit, "/exit", ChatRoom::hash("/exit"), USE_IN_ROOM, 0, "Usage: /exit"},
+	{cmd_id_rooms, "/rooms", ChatRoom::hash("/rooms"), USE_IN_LOBBY, 0, "Usage: /rooms"} // print all public rooms
 
 	// IDEA: /clear - clear screen
 };
 
 ChatRoom::ChatRoom(ChatServer *i_server, int id, char *pass)
-        : the_server(i_server), code(id), first(0)
+        : the_server(i_server), code(id)
 {
+	users = new StorageOfUsers();
 	if(pass)
 		strcpy(secret_pass, pass);
 	else secret_pass[0] = 0;
@@ -51,22 +48,11 @@ ChatRoom::ChatRoom(ChatServer *i_server, int id, char *pass)
 
 ChatRoom::~ChatRoom()
 {
-	while(first) {
-        item *tmp = first;
-        first = first->next;
-        the_server->CloseConnection(tmp->u);
-        delete tmp;
-    }
-}
-
-void ChatRoom::SendAll(const char *msg, UserInfo *except,
-	const int spec_msg)
-{
-    CONSOLE_LOG("Send message all: %s\n", msg);
-    item *p;
-    for(p = first; p; p = p->next)
-        if(p->u != except)
-            p->u->Send(msg, spec_msg);
+	UserInfo *u = 0;
+	while((u = users->Disconnect())) {
+		the_server->CloseConnection(u);
+	}
+    delete users;
 }
 
 void ChatRoom::HandleMessage(UserInfo *u, const char *str)
@@ -141,7 +127,7 @@ void ChatRoom::HandleMessage(UserInfo *u, const char *str)
 	    char *msg = new char[max_msg_len];
 	    sprintf(msg, "%s: %s", u->GetName(), str);
 
-	    this->SendAll(msg, 0, usual_msg);
+	    users->SendAllUsers(msg, 0, usual_msg);
 	    
 	    delete[] msg;
 	}
@@ -215,10 +201,11 @@ void ChatRoom::HandleCommand(UserInfo *u, int count,
 			else if(h_status == enter_uncorrect_pass)
 				return u->Send("Oops, this password is not valid");
 
-			u->Send("You has left the room");
+			u->Send("You has entered the room");
 			break;
 		}
 		case cmd_id_exit: {
+			u->Send("You has left the room");
 			the_server->GotoLobby(this, u);
 			break;
 		}
@@ -239,11 +226,7 @@ const char *ChatRoom::GetSecretPass()
 
 void ChatRoom::AddSession(UserInfo *u)
 {
-	item *p = new item;
-    p->next = first;
-    p->u = u;
-    first = p;
-
+	users->AddUser(u);
     if(code == std_id_lobby)
     	return;
 
@@ -259,7 +242,7 @@ void ChatRoom::AddSession(UserInfo *u)
 
     char *emsg = new char[strlen(name) + sizeof(entered_msg)];
     sprintf(emsg, "%s%s", name, entered_msg);
-    this->SendAll(emsg, u);
+    users->SendAllUsers(emsg, u);
    	delete[] emsg;
 
 }
@@ -273,24 +256,13 @@ void ChatRoom::RemoveSession(UserInfo *u)
 	    int len = strlen(name);
 	    char *lmsg = new char[len + sizeof(left_msg) + 2];
 	    sprintf(lmsg, "%s%s", name, left_msg);
-	    this->SendAll(lmsg, u);
+	    users->SendAllUsers(lmsg, u);
 	    delete[] lmsg;
 	}
 
-	item **p;
-	for(p = &first; *p; p = &((*p)->next)) {
-		if( ((*p)->u) == u ) {
-			item *tmp = *p;
-			*p = tmp->next;
-			// not delete UserInfo!
-			delete tmp;
-			
-			if(code != std_id_lobby && !first)
-				the_server->DeleteRoom(code);
-
-			return;
-		}
-	}
+	users->RemoveUser(u);
+	if(code != std_id_lobby && users->GetOnline() < 1)
+		the_server->DeleteRoom(code);
 }
 
 void ChatRoom::CloseSession(UserInfo *u)
@@ -302,7 +274,7 @@ void ChatRoom::CloseSession(UserInfo *u)
 
 //////////////////////////////////////////////////////////////
 
-static char **ParseToArg(const char *input, int &arrc)
+char **ChatRoom::ParseToArg(const char *input, int &arrc)
 {
 	int max_argv = 5;
 	arrc = 0;
@@ -332,7 +304,7 @@ static char **ParseToArg(const char *input, int &arrc)
 	return arr;
 }
 
-static unsigned long hash(const char *str)
+unsigned long ChatRoom::hash(const char *str)
 {
     unsigned long hash = 5381;
     char c;
@@ -343,7 +315,7 @@ static unsigned long hash(const char *str)
     return hash;
 }
 
-static bool checkForbiddenSymbols(const char *str)
+bool ChatRoom::checkForbiddenSymbols(const char *str)
 {
 	char banned_symbols[] = {'!', '@', '#', '\'',
 		'\"', '\\', '/', '^', '&', '*', ';', ','};

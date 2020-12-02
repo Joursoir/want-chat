@@ -17,6 +17,28 @@ enum handle_room_enter {
 class ChatRoom;
 class UserInfo;
 
+class StorageOfUsers {
+    int online;
+    struct item {
+        UserInfo *u;
+        item *next;
+    };
+    item *first;
+public:
+    StorageOfUsers() : online(0), first(0) {}
+    ~StorageOfUsers();
+
+    void SendAllUsers(const char *msg, UserInfo *except = 0,
+        const int spec_msg = system_msg);
+
+    void AddUser(UserInfo *u);
+    void RemoveUser(UserInfo *u);
+    // func for fast clear storage:
+    UserInfo *Disconnect();
+
+    int GetOnline() const { return online; }
+};
+
 class ChatServer : public FdHandler {
     EventSelector *the_selector;
     DatabaseManager *dbase;
@@ -24,6 +46,8 @@ class ChatServer : public FdHandler {
     ChatRoom **room;
     int room_len;
     ChatRoom *lobby;
+
+    StorageOfUsers *talkers;
 
     ChatServer(EventSelector *sel, DatabaseManager *db, int fd);
 public:
@@ -48,16 +72,5 @@ public:
 private:
     virtual void Handle(bool r, bool w); 
 };
-
-/*class StorageOfUsers {
-    struct item {
-        ChatSession *s;
-        item *next;
-    }
-    item *first;
-public:
-    AddSession(ChatSession *s);
-    RemoveSession(ChatSession *s);
-};*/
 
 #endif
