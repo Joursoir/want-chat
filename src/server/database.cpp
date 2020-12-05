@@ -16,6 +16,9 @@ char *DB_ROW::operator[](const int index)
 
 AnswerDB::~AnswerDB()
 {
+	if(current_row)
+		delete current_row;
+	
 	mysql_free_result(result);
 }
 
@@ -68,4 +71,9 @@ AnswerDB *DatabaseManager::QuerySelect(const char *sql)
 	unsigned int fields = mysql_num_fields(result);
 	unsigned long rows = mysql_num_rows(result);
 	return new AnswerDB(result, fields, rows);
+}
+
+int DatabaseManager::QueryInsert(const char *sql)
+{
+	return mysql_query(connection, sql);
 }

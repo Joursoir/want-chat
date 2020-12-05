@@ -7,9 +7,7 @@ void UserInfo::SetRoom(ChatRoom *new_master)
 
 const char *UserInfo::GetName() const
 {
-    if(name[0])
-        return name;
-    return 0;
+    return name;
 }
 
 void UserInfo::SetName(const char *n_name)
@@ -17,7 +15,17 @@ void UserInfo::SetName(const char *n_name)
     strcpy(name, n_name);
 }
 
-void UserInfo::SetStatus(const enum_status e_s)
+const char *UserInfo::GetPassword() const
 {
-    state = e_s;
+	return password;
+}
+
+void UserInfo::SetPassword(const char *pass)
+{
+	strcpy(password, pass);
+}
+
+void UserInfo::SetStatus(const enum_status n_status)
+{
+    state = n_status;
 }

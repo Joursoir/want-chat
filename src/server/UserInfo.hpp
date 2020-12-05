@@ -12,7 +12,7 @@ class ChatServer;
 enum enum_status {
     wait_name, // expecting a username from player
     wait_reg, // expecting registration
-    wait_log, // expecting login
+    wait_login, // expecting login
     no_wait
 };
 
@@ -22,6 +22,7 @@ class UserInfo : FdHandler {
     friend class ChatServer;
 
 	char name[max_name_len];
+    char password[max_player_lenpass];
     char buffer[max_msg_len];
     int buf_used;
     bool ignoring;
@@ -29,8 +30,8 @@ class UserInfo : FdHandler {
     enum_status state;
     ChatRoom *the_master;
 
-    UserInfo(ChatRoom *i_master, int i_fd) : FdHandler(i_fd),
-        buf_used(0), ignoring(false), state(wait_name),
+    UserInfo(ChatRoom *i_master, int i_fd) : FdHandler(i_fd), name("0"),
+        password("0"), buf_used(0), ignoring(false), state(wait_name),
         the_master(i_master) {}
     ~UserInfo() {}
 
@@ -47,9 +48,12 @@ public:
 
     const char *GetName() const;
     void SetName(const char *n_name);
+    
+    const char *GetPassword() const;
+    void SetPassword(const char *pass);
 
     enum_status GetStatus() const { return state; }
-    void SetStatus(const enum_status e_s);
+    void SetStatus(const enum_status n_status);
 };
 
 #endif

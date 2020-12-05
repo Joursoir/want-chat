@@ -186,6 +186,21 @@ void StorageOfUsers::SendAllUsers(const char *msg, UserInfo *except,
             p->u->Send(msg, spec_msg);
 }
 
+UserInfo *StorageOfUsers::SearchUserByName(const char *name)
+{
+    item *tmp = first;
+    while(tmp) {
+        const char *search = name;
+        const char *checking = tmp->u->GetName();
+        if(strcmp(search, checking) == 0)
+            return tmp->u;
+
+        tmp = tmp->next;
+    }
+
+    return 0;
+}
+
 void StorageOfUsers::AddUser(UserInfo *u)
 {
     item *p = new item;
@@ -205,6 +220,7 @@ void StorageOfUsers::RemoveUser(UserInfo *u)
             // not delete UserInfo!
             online--;
             delete tmp;
+            tmp = 0; // null for first
             return;
         }
     }
@@ -220,5 +236,7 @@ UserInfo *StorageOfUsers::Disconnect()
         delete tmp;
         return rn;
     }
+
+    first = 0;
     return 0;
 }

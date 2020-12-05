@@ -47,19 +47,7 @@ public:
     	const char *unix_socket = 0, unsigned long flags = 0);
 
 	AnswerDB *QuerySelect(const char *sql);
+	int QueryInsert(const char *sql);
 };
 
 #endif
-
-/*
-
-надо как-то вызывать ~AnswerDB!!
-
-Answer DB *ans = server->Query("SELECT password FROM users WHERE name = '%s' ONLY ONE", strlen(..))
-DB_ROW *row = ans->GetNextRow();
-if(row)
-	name = row[0];
-	password = row[1];
-
-
-*/

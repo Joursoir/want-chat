@@ -30,6 +30,7 @@ public:
 
     void SendAllUsers(const char *msg, UserInfo *except = 0,
         const int spec_msg = system_msg);
+    UserInfo *SearchUserByName(const char *name);
 
     void AddUser(UserInfo *u);
     void RemoveUser(UserInfo *u);
@@ -68,7 +69,12 @@ public:
     // work with database:
     AnswerDB *QuerySelect(const char *sql) 
         { return dbase->QuerySelect(sql); }
+    int QueryInsert(const char *sql) 
+        { return dbase->QueryInsert(sql); }
 
+    // players actions:
+    UserInfo *IsUserOnline(const char *name)
+        { return talkers->SearchUserByName(name); }
 private:
     virtual void Handle(bool r, bool w); 
 };
