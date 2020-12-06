@@ -25,58 +25,8 @@ ChatRoom::~ChatRoom()
 
 void ChatRoom::HandleMessage(UserInfo *u, const char *str)
 {
-	int status = u->GetStatus();
-	if(status == wait_name) {
-		if(!CheckEnterNickname(u, str)) {
-			CloseSession(u);
-			return;
-		}
-		u->SetName(str);
-
-		// query to server
-		char *msg = new char[DB_BUFFER_SIZE];
-		sprintf(msg, "SELECT password FROM users WHERE name = '%s' LIMIT 1", str);
-		AnswerDB *ans = the_server->QuerySelect(msg);
-		if(ans) {
-			DB_ROW *row = ans->GetNextRow();
-
-			sprintf(msg, "Welcome to WantChat, %s!", u->GetName());
-			u->Send(msg);
-			u->Send(" ");
-			u->Send("Welcome to anonymous chat in retro-style 80s.");
-			u->Send("Use our chat-client for more immersed.");
-		 	u->Send(" ");
-			u->Send("This project is open source :)");
-			u->Send("Github: github.com/Joursoir/want-chat");
-			u->Send(" ");
-			u->Send("To join to room using /join room_id");
-			u->Send("You can find rooms using /rooms");
-			u->Send(" ");
-			u->Send("For more detailed info: /help. Good chatting!");
-			u->Send(" ");
-
-			if(row) {
-				u->SetPassword((*row)[0]);
-				u->SetStatus(wait_login);
-
-				u->Send("Please, log in using /login");
-			}
-			else {
-				u->SetStatus(wait_reg);
-				u->Send("Please, create account using /reg");
-			}
-		}
-		else {
-			// handling error
-			CloseSession(u);
-			return;
-		}
-		// query to server
-
-		delete[] msg;
-		delete ans;
-		return;
-	}
+	if(u->GetStatus() != no_wait)
+		return Identification(u, str);
 
 	if(str[0] == '/') { // if user sent a command
 		int argc = 0;
@@ -95,11 +45,7 @@ void ChatRoom::HandleMessage(UserInfo *u, const char *str)
 	    
 	    delete[] msg;
 	}
-	else {
-		if(status == wait_reg) u->Send(first_reg);
-		else if(status == wait_login) u->Send(first_login);
-		else u->Send("In the lobby you can write only commands");
-	}
+	else u->Send("In the lobby you can write only commands");
 }
 
 const char *ChatRoom::GetSecretPass()
@@ -155,6 +101,90 @@ void ChatRoom::CloseSession(UserInfo *u)
 	ChatServer *serv = the_server;
 	this->RemoveSession(u);
 	serv->CloseConnection(u);
+}
+
+void ChatRoom::Identification(UserInfo *u, const char *str)
+{
+	int status = u->GetStatus();
+	if(status == wait_name) {
+		if(!CheckEnterNickname(u, str)) {
+			CloseSession(u);
+			return;
+		}
+		u->SetName(str);
+
+		// query to server
+		char *msg = new char[DB_BUFFER_SIZE];
+		sprintf(msg, "SELECT password FROM users WHERE name = '%s' LIMIT 1", str);
+		AnswerDB *ans = the_server->QuerySelect(msg);
+		if(ans) {
+			DB_ROW *row = ans->GetNextRow();
+
+			if(row) {
+				u->SetPassword((*row)[0]);
+				u->SetStatus(wait_login);
+
+				sprintf(msg, "Hello, %s! Please, type your password:", u->GetName());
+				u->Send(msg);
+			}
+			else {
+				u->SetStatus(wait_reg);
+				sprintf(msg, "First time here, %s? Please, come up and write password:", u->GetName());
+				u->Send(msg);
+			}
+		}
+		else {
+			// handling error
+			CloseSession(u);
+			return;
+		}
+		// query to server
+
+		delete[] msg;
+		delete ans;
+	}
+	else if(status == wait_reg) {
+		if(!CheckEnterPassword(u, str))
+			return;
+
+		// query to server (add to database)
+		char *msg = new char[DB_BUFFER_SIZE];
+		sprintf(msg, "INSERT INTO users (name, password) VALUES ('%s', '%s')", u->GetName(), str);
+		if(the_server->QueryInsert(msg) != 0) {
+			perror("mariadb insert");
+		}
+		// query to server
+
+		sprintf(msg, "Congratulations, %s! You have registered successfully.", u->GetName());
+		u->Send(msg);
+		delete[] msg;
+
+		u->SetStatus(no_wait);
+	}
+	else if(status == wait_login) {
+		const char *right_pass = u->GetPassword();
+
+		if(strcmp(str, right_pass) != 0)
+			return u->Send("Password are not right, try again.");
+
+		u->Send("Yeh, right password! Glad you came back to WhatChat.");
+		u->SetStatus(no_wait);
+	}
+
+	if(u->GetStatus() == no_wait) {
+		u->Send(" ");
+		u->Send("Welcome to anonymous chat in retro-style 80s.");
+		u->Send("Use our chat-client for more immersed.");
+		u->Send(" ");
+		u->Send("This project is open source :)");
+		u->Send("Github: github.com/Joursoir/want-chat");
+		u->Send(" ");
+		u->Send("To join to room using /join room_id");
+		u->Send("You can find rooms using /rooms");
+		u->Send(" ");
+		u->Send("For more detailed info: /help. Good chatting!");
+		u->Send(" ");
+	}
 }
 
 bool ChatRoom::CheckEnterNickname(UserInfo *u, const char *name)

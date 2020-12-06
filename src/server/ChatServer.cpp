@@ -12,7 +12,7 @@
 const int qlen_for_listen = 6;
 
 ChatServer::ChatServer(EventSelector *sel, DatabaseManager *db, int fd)
-    : FdHandler(fd), the_selector(sel), dbase(db)
+    : FdHandler(fd), the_selector(sel), dbase(db), room(0)
 {
     the_selector->Add(this);
     lobby = new ChatRoom(this, std_id_lobby, 0);
@@ -163,6 +163,8 @@ void ChatServer::Handle(bool r, bool w)
     talkers->AddUser(u);
     lobby->AddSession(u);
     the_selector->Add(u);
+
+    u->Send("Welcome to WantChat! What is your name?");
 }
 
 ///////////////////////////////////////////////////////////////

@@ -39,6 +39,7 @@ private:
     static char **ParseToArg(const char *input, int &arrc); // in _cmd
     static bool CheckForbiddenSymbols(const char *str); // in _cmd
 
+    void Identification(UserInfo *u, const char *str);
     bool CheckEnterNickname(UserInfo *u, const char *name);
     bool CheckEnterPassword(UserInfo *u, const char *pass);
 

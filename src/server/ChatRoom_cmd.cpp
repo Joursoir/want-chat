@@ -23,18 +23,14 @@ const int cmd_id_create = 1;
 const int cmd_id_join = 2;
 const int cmd_id_exit = 3;
 const int cmd_id_rooms = 4;
-const int cmd_id_reg = 5;
-const int cmd_id_login = 6;
 
-const int cmd_count = 7;
+const int cmd_count = 5;
 const struct cmd_info cmd[cmd_count] = {
 	{cmd_id_help, "/help", ChatRoom::Hash("/help"), USE_ANYWHERE, 0, "Usage: /help"},
 	{cmd_id_create, "/create", ChatRoom::Hash("/create"), USE_IN_LOBBY, 0, "Usage: /create [pass-key]"},
 	{cmd_id_join, "/join", ChatRoom::Hash("/join"), USE_IN_LOBBY, 1, "Usage: /join *id* [pass-key]"},
 	{cmd_id_exit, "/exit", ChatRoom::Hash("/exit"), USE_IN_ROOM, 0, "Usage: /exit"},
-	{cmd_id_rooms, "/rooms", ChatRoom::Hash("/rooms"), USE_IN_LOBBY, 0, "Usage: /rooms"}, // print all public rooms
-	{cmd_id_reg, "/reg", ChatRoom::Hash("/reg"), USE_IN_LOBBY, 2, "Usage: /reg *pass* *pass*"},
-	{cmd_id_login, "/login", ChatRoom::Hash("/login"), USE_IN_LOBBY, 1, "Usage: /login *pass*"}
+	{cmd_id_rooms, "/rooms", ChatRoom::Hash("/rooms"), USE_IN_LOBBY, 0, "Usage: /rooms"} // print all public rooms
 
 	// IDEA: /clear - clear screen
 };
@@ -55,12 +51,6 @@ void ChatRoom::HandleCommand(UserInfo *u, int count,
 
 	if(what_command == -1)
 		return u->Send("Unknown command. Use: /help");
-
-	enum_status status = u->GetStatus();
-	if(status == wait_reg && what_command != cmd_id_reg)
-		return u->Send(first_reg);
-	if(status == wait_login && what_command != cmd_id_login)
-		return u->Send(first_login);
 
 	// scope of command:
 	if(cmd[what_command].lobby_cmd == USE_IN_ROOM && code == std_id_lobby)
@@ -125,46 +115,6 @@ void ChatRoom::HandleCommand(UserInfo *u, int count,
 		}
 		case cmd_id_rooms: {
 			// in development
-			break;
-		}
-
-		case cmd_id_reg: {
-			char *pass_one = argvar[1];
-			char *pass_two = argvar[2];
-
-			if(!CheckEnterPassword(u, pass_one))
-				return;
-			if(strcmp(pass_one, pass_two) != 0)
-				return u->Send("Passwords are not match, try again");
-
-			// query to server (add to database)
-			char *msg = new char[DB_BUFFER_SIZE];
-			sprintf(msg, "INSERT INTO users (name, password) VALUES ('%s', '%s')", u->GetName(), pass_one);
-			if(the_server->QueryInsert(msg) != 0) {
-				perror("mariadb insert");
-			}
-			// query to server
-
-			sprintf(msg, "Congratulations, %s. You registered in WhatChat.", u->GetName());
-			u->Send(msg);
-			delete[] msg;
-			u->SetStatus(no_wait);
-			break;
-		}
-		case cmd_id_login: {
-			CONSOLE_LOG("[!] pass\n");
-			char *enter_pass = argvar[1];
-			const char *right_pass = u->GetPassword();
-
-			if(strcmp(enter_pass, right_pass) != 0)
-				return u->Send("Password are not right, try again");
-
-			int msg_len = strlen("Hello, ! Glad you came back to WhatChat.");
-			char *msg = new char[msg_len + max_name_len];
-			sprintf(msg, "Hello, %s! Glad you came back to WhatChat.", u->GetName());
-			u->Send(msg);
-			delete[] msg;
-			u->SetStatus(no_wait);
 			break;
 		}
 		default: break;

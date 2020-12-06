@@ -14,20 +14,7 @@ const int key_enter = 10;
 const int key_escape = 27;
 const int key_backspace = 127;
 
-//
-
-Client::Client(int i_fd, char *username) : fd(i_fd), in_buf_used(0),
-	out_buf_used(0)
-{
-	int len = strlen(username);
-	char *name = new char[len+2];
-	sprintf(name, "%s\n", username);
-
-	write(i_fd, name, strlen(name));
-	delete[] name;
-}
-
-Client *Client::Start(const char* ip, int port, char *username)
+Client *Client::Start(const char* ip, int port)
 {
 	int client;
 	client = socket(AF_INET, SOCK_STREAM, 0);
@@ -49,7 +36,7 @@ Client *Client::Start(const char* ip, int port, char *username)
 		sizeof(server_adress));
 	if(res == -1) return 0;
 
-	return new Client(client, username);
+	return new Client(client);
 }
 
 void Client::Run(ChatRoom *room)

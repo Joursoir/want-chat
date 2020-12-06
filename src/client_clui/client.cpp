@@ -3,20 +3,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "../config.hpp"
 #include "user.hpp"
-
-#define SERVER_IP "127.0.0.1"
-static int port = 3030;
 
 int main(int argc, char *argv[])
 {
-	if(argc < 2) {
-		printf("Usage: client *name*\n");
-		return 1;
-	}
-
 	initscr();
-	//raw();
 	noecho();
 
 	int rows, columns;
@@ -27,7 +19,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	Client *user = Client::Start(SERVER_IP, port, argv[1]);
+	Client *user = Client::Start(SERVER_IP, SERVER_PORT);
 	if(!user) {
 		endwin();
 		perror("server");
