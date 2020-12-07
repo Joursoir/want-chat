@@ -1,6 +1,6 @@
 CPP = g++
 CPPFLAGS = -Wall -g -lfltk
-SOURCES = client.cpp
+SOURCES = client.cpp OO_FLTK.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 EXECUTABLE = client
 

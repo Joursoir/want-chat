@@ -1,5 +1,6 @@
 architecture/
-src/client/client
+src/client/clui/client
+src/client/gui/client
 src/server/server
 src/server/hash*
 *.o
