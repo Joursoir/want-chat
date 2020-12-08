@@ -1,7 +1,7 @@
 CPP = g++
 CPPFLAGS = -Wall -g -lfltk
-SOURCES = client.cpp OO_FLTK.cpp
-OBJECTS = $(SOURCES:.cpp=.o)
+SOURCES = main.cpp OO_FLTK.cpp ../ClientBase.cpp Client.cpp
+OBJECTS = main.o OO_FLTK.o ClientBase.o Client.o
 EXECUTABLE = client
 
 .PHONY: all clean

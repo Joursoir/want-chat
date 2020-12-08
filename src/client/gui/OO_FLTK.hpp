@@ -1,3 +1,6 @@
+#ifndef WC_OOFLTK_H
+#define WC_OOFLTK_H
+
 #include <FL/Fl.H>
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Input.H>
@@ -24,3 +27,5 @@ public:
 	ChatBaseOutput(int x, int y, int w, int h, const char *lb = 0);
 	~ChatBaseOutput() {}
 };
+
+#endif
