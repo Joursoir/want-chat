@@ -1,24 +1,27 @@
 #include "OO_FLTK.hpp"
 #include "../../const_vars.hpp"
+#include "Client.hpp"
 
-BoxOutline::BoxOutline(int x, int y, int w, int h, const char *lb)
+BoxBackground::BoxBackground(int x, int y, int w, int h,
+	const char *lb, Fl_Color clr)
 	: Fl_Box(x, y, w, h, lb)
 {
 	box(FL_FLAT_BOX);
-	color(FL_WHITE);
+	color(clr);
 }
 
-ChatInput::ChatInput(int x, int y, int w, int h, const char *lb)
+ChatInput::ChatInput(int x, int y, int w, int h,
+	const char *lb, Client *user)
 	: Fl_Input(x, y, w, h, lb)
 {
-	callback(CallbackFunction, 0);
+	callback(CallbackFunction, (void *)user);
 	when(FL_WHEN_ENTER_KEY | FL_WHEN_NOT_CHANGED);
 
 	box(FL_FLAT_BOX);
 	color(FL_BLACK);
 
 	cursor_color(FL_WHITE);
-	textfont(FL_COURIER);
+	textfont(STD_FONT);
 	textsize(20);
 	textcolor(FL_WHITE);
 
@@ -30,19 +33,24 @@ void ChatInput::SendMessage(void *user)
 	if(strlen(value()) < 1)
 		return;
 
-	printf("SendMessage\n");
-	// send message to server
+	Client *cl = (Client *)user;
+	if(cl != 0) { // send message to server
+		const char *message = value();
+		printf("U sent: %s\n", message);
+		cl->SendMessage(message);
+	}
+
 	value("");
 	take_focus();
 }
 
 ChatBaseOutput::ChatBaseOutput(int x, int y, int w, int h, const char *lb)
-	: Fl_Multiline_Output(x, y, w, h, lb)
+	: Fl_Output(x, y, w, h, lb)
 {
 	box(FL_FLAT_BOX);
 	color(FL_BLACK);
 
-	textfont(FL_COURIER);
+	textfont(STD_FONT);
 	textsize(20);
 	textcolor(FL_WHITE);
 }

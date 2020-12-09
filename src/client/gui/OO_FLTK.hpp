@@ -4,17 +4,23 @@
 #include <FL/Fl.H>
 #include <FL/Fl_Box.H>
 #include <FL/Fl_Input.H>
-#include <FL/Fl_Multiline_Output.H>
+#include <FL/Fl_Output.H>
 
-class BoxOutline : public Fl_Box {
+#define STD_FONT FL_COURIER
+
+class Client;
+
+class BoxBackground : public Fl_Box {
 public:
-	BoxOutline(int x, int y, int w, int h, const char *lb = 0);
-	~BoxOutline() {}
+	BoxBackground(int x, int y, int w, int h,
+		const char *lb = 0, Fl_Color clr = FL_WHITE);
+	~BoxBackground() {}
 };
 
 class ChatInput : public Fl_Input {
 public:
-	ChatInput(int x, int y, int w, int h, const char *lb = 0);
+	ChatInput(int x, int y, int w, int h, 
+		const char *lb = 0, Client *user = 0);
 	virtual ~ChatInput() {}
 	virtual void SendMessage(void *user);
 private:
@@ -22,7 +28,7 @@ private:
 		{ static_cast<ChatInput*>(w)->SendMessage(user); }
 };
 
-class ChatBaseOutput : public Fl_Multiline_Output {
+class ChatBaseOutput : public Fl_Output {
 public:
 	ChatBaseOutput(int x, int y, int w, int h, const char *lb = 0);
 	~ChatBaseOutput() {}
