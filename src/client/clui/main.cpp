@@ -3,8 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../config.hpp"
-#include "user.hpp"
+#include "../../config.hpp"
+#include "Client.hpp"
+#include "clui.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -19,16 +20,17 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	Client *user = Client::Start(SERVER_IP, SERVER_PORT);
-	if(!user) {
+	ChatRoom *room = new ChatRoom();
+	Client *user = new Client(SERVER_IP, SERVER_PORT, room);
+	if(user->ConstuctorError()) {
 		endwin();
 		perror("server");
 		return 1;
 	}
 
-	ChatRoom *room = new ChatRoom();
-	user->Run(room);
+	while(user->Run());
 	delete room;
+	delete user;
 
 	endwin();
 	return 0;

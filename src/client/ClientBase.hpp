@@ -6,21 +6,23 @@
 class ClientBase {
 protected:
 	int fd;
-	char in_buffer[max_usermsg_len]; // for input
-	int in_buf_used;
 
 	char out_buffer[max_msg_len]; // for message
 	int out_buf_used;
 
 	bool exit_flag;
+	bool connection;
 public:
 	ClientBase(const char* ip, int port);
 	virtual ~ClientBase();
 	int ConstuctorError() const { return fd > -1 ? 0 : 1; }
 
 	int Run();
+	void BreakLoop() { exit_flag = true; }
+	
 	virtual void HandleActions() {}
-	virtual void ShowMessage(const char *msg) {}
+	virtual void AddMessage(const char *msg, int type) {}
+	void SendMessage(const char *msg);
 private:
 	int CreateSocket(const char* ip, int port);
 };

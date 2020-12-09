@@ -1,10 +1,10 @@
 // CLUI - Command Line User Interface
 
-#ifndef COMMANDLINEUI_H
-#define COMMANDLINEUI_H
+#ifndef WC_CLUI_H
+#define WC_CLUI_H
 
 #include <ncurses.h>
-#include "../const_vars.hpp"
+#include "../../const_vars.hpp"
 
 class Interface_wc {
 	WINDOW *w;
@@ -41,7 +41,7 @@ public:
 	~ChatRoom();
 
 	// for chat:
-	void AddMessage(char *msg, int type);
+	void AddMessage(const char *msg, int type);
 
 	// for players:
 	//void AddPlayer()

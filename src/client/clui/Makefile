@@ -1,7 +1,7 @@
 CPP = g++
 CPPFLAGS = -Wall -g -lncurses
-SOURCES = client.cpp clui.cpp user.cpp
-OBJECTS = $(SOURCES:.cpp=.o)
+SOURCES = main.cpp clui.cpp Client.cpp ../ClientBase.cpp
+OBJECTS = main.o clui.o Client.o ClientBase.o
 EXECUTABLE = client
 
 .PHONY: all clean

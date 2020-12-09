@@ -9,8 +9,8 @@
 
 #include "ClientBase.hpp"
 
-ClientBase::ClientBase(const char* ip, int port) : in_buf_used(0),
-	out_buf_used(0), exit_flag(false)
+ClientBase::ClientBase(const char* ip, int port)
+	: out_buf_used(0), exit_flag(false), connection(true)
 {
 	fd = CreateSocket(ip, port);
 }
@@ -50,6 +50,8 @@ int ClientBase::CreateSocket(const char* ip, int port)
 
 int ClientBase::Run()
 {
+	if(exit_flag)
+		return 0;
 	HandleActions();
 
 	int recive = read(fd, out_buffer+out_buf_used,
@@ -62,9 +64,11 @@ int ClientBase::Run()
 	else if(recive > 0)
 		out_buf_used += recive;
 	else {
-		strcpy(out_buffer, "Server closed the connection. Use ESC to exit.");
-		ShowMessage(out_buffer);
-		//room->AddMessage(out_buffer, system_msg);
+		if(connection) {
+			strcpy(out_buffer, "Server closed the connection. Use ESC to exit.");
+			AddMessage(out_buffer, system_msg);
+			connection = false;
+		}
 	}
 
 	if(out_buf_used > 0) {
@@ -82,14 +86,22 @@ int ClientBase::Run()
 					buf += 1;
 				}
 
-				//room->AddMessage(buf, spec_msg);
-				ShowMessage(buf);
+				AddMessage(buf, spec_msg);
 				memmove(out_buffer, out_buffer + i + 1, out_buf_used - i - 1);
 				out_buf_used -= i + 1;
 				break;
 			}
 		}
 	}
-
 	return 1;
+}
+
+void ClientBase::SendMessage(const char *msg)
+{
+	int len = strlen(msg) + 1;
+	char *buf = new char[len];
+	strcpy(buf, msg);
+	buf[len-1] = '\n';
+
+	write(fd, buf, len * sizeof(char));
 }

@@ -55,18 +55,19 @@ ChatRoom::~ChatRoom()
 	if(input)
 		delete input;
 
-	// #TODO:
-	/* if(first) ... delete message */
+	while(first) {
+        message *tmp = first;
+        first = first->prev;
+        delete tmp;
+    }
 }
 
-void ChatRoom::AddMessage(char *msg, int type)
+void ChatRoom::AddMessage(const char *msg, int type)
 {
 	message *recent_msg = new message;
 
-	int lines = 1;
 	int len = strlen(msg);
-	if(len > CHAT_WIDTH-2 + CHAT_WIDTH-2) lines = 3;
-	else if(len > CHAT_WIDTH-2) lines = 2;
+	int lines = (len / oneline_len) + 1;
 
 	strcpy(recent_msg->msg, msg);
 	recent_msg->num_lines = lines;
@@ -84,13 +85,13 @@ void ChatRoom::ChatRedraw()
 		return;
 
 	chat->Clear(false);
-	int available_lines = CHAT_HEIGHT - 2;
+	int available_lines = lines_in_chat;
 	bool remove = false;
 	message *tmp;
 
 	message *last;
 	for(message *m = first; m; m = m->prev) {
-		if(available_lines-1 >= m->num_lines) {
+		if(available_lines >= m->num_lines) {
 			PrintMessage(available_lines, m);
 			available_lines -= m->num_lines;
 			last = m;
@@ -119,25 +120,22 @@ void ChatRoom::PrintMessage(int line, message *m)
 {
 	WINDOW *win = this->chat->GetWindow();
 	int need_print = m->num_lines;
-	int maxlen_oneline = CHAT_WIDTH-2;
 
 	while(need_print != 0) {
 		if(m->type == system_msg) wattron(win, A_ITALIC);
 		else wattron(win, A_BOLD);
-
 		wmove(win, line-need_print+1, 1);
 
-		char *tmp = new char[maxlen_oneline];
-		int str = maxlen_oneline * (m->num_lines - need_print);
-		memcpy(tmp, m->msg + str, maxlen_oneline);
+		char *tmp = new char[oneline_len];
+		int str = oneline_len * (m->num_lines - need_print);
+		memcpy(tmp, m->msg + str, oneline_len);
 
 		wprintw(win, tmp);
-		need_print--;
-
 		if(m->type == system_msg) wattroff(win, A_ITALIC);
 		else wattroff(win, A_BOLD);
 		
 		delete[] tmp;
+		need_print--;
 	}
 }
 
