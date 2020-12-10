@@ -3,22 +3,52 @@
 #include "Client.hpp"
 #include "clui.hpp"
 
+#define CHAT_HEIGHT 20
+#define CHAT_WIDTH 59
+#define PLAYERS_WIDTH 20
+#define PLAYERS_HEIGHT 12
+#define TIPS_WIDTH 20
+#define TIPS_HEIGHT 8
+#define INPUT_HEIGHT 4
+#define INPUT_WIDTH 80
+
 const int key_enter = 10;
 const int key_escape = 27;
 const int key_backspace = 127;
 
+Client::Client(const char* ip, int port)
+	: ClientBase(ip, port), in_buf_used(0), exit_flag(false)
+{
+	chat = new WindowChat(CHAT_HEIGHT, CHAT_WIDTH, 0, 0, 0);
+	players = new WindowPlayers(PLAYERS_HEIGHT, PLAYERS_WIDTH, 0, 60, 0);
+	tips = new WindowTips(TIPS_HEIGHT, TIPS_WIDTH, PLAYERS_HEIGHT, 60, 0);
+	input = new WindowInput(INPUT_HEIGHT, INPUT_WIDTH, 20, 0, 0);
+}
+
+Client::~Client()
+{
+	if(chat)
+		delete chat;
+	if(players)
+		delete players;
+	if(tips)
+		delete tips;
+	if(input)
+		delete input;
+}
+
 void Client::HandleActions()
 {
-	int key = room->InputGetch();
+	int key = input->GetChar();
 	switch(key)
 	{
 		case key_escape: {
-			this->BreakLoop();
+			BreakLoop();
 			break;
 		}
 		case ' '...'~': { // ascii table 32...126
 			AddCharToBuffer(key);
-			room->AddCharToSendMsg(key);
+			input->AddCharToSendMsg(key);
 			break;
 		}
 		case '\n': { // send message
@@ -28,13 +58,13 @@ void Client::HandleActions()
 			memset(in_buffer, 0, (in_buf_used+1)*sizeof(char)); 
 			in_buf_used = 0;
 
-			room->InputClear();
-			room->SetInputCursor(1, 1);
+			input->Clear(false);
+			input->SetPosCursor(1, 1);
 			break;
 		}
 		case key_backspace: {
 			RemoveCharFromBuffer();
-			room->RemoveCharFromMsg();
+			input->RemoveCharFromMsg();
 			break;
 		}
 		default: break;
@@ -43,7 +73,7 @@ void Client::HandleActions()
 
 void Client::AddMessage(const char *msg, int type)
 {
-	room->AddMessage(msg, type);
+	chat->AddMessage(msg, type);
 }
 
 void Client::AddCharToBuffer(char ch)

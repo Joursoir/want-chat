@@ -5,7 +5,6 @@
 
 #include "../../config.hpp"
 #include "Client.hpp"
-#include "clui.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -20,8 +19,7 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	ChatRoom *room = new ChatRoom();
-	Client *user = new Client(SERVER_IP, SERVER_PORT, room);
+	Client *user = new Client(SERVER_IP, SERVER_PORT);
 	if(user->ConstuctorError()) {
 		endwin();
 		perror("server");
@@ -29,7 +27,6 @@ int main(int argc, char *argv[])
 	}
 
 	while(user->Run());
-	delete room;
 	delete user;
 
 	endwin();
