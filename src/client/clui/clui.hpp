@@ -10,7 +10,7 @@ class WindowChat : public WindowInterface {
 	struct message {
 		char text[max_msg_len];
 		int num_lines; // number of lines
-		int type;
+		char spec_char;
 		message *prev;
 	};
 	message *first;
@@ -19,7 +19,7 @@ public:
 		: WindowInterface(num_y, num_x, by, bx, ch), first(0) {}
 	~WindowChat();
 
-	void AddMessage(const char *msg, int type);
+	void AddMessage(const char *msg, const char spec_ch);
 private:
 	void ChatRedraw();
 	void PrintMessage(int line, message *m);
@@ -27,16 +27,19 @@ private:
 
 class WindowPlayers : public WindowInterface {
 public:
-	WindowPlayers(int num_y, int num_x, int by, int bx, char ch)
-		: WindowInterface(num_y, num_x, by, bx, ch) {}
+	WindowPlayers(int num_y, int num_x, int by, int bx, char ch);
 	~WindowPlayers() {}
+
+	void SetPlayersList(const char *list);
 };
 
 class WindowTips : public WindowInterface {
 public:
-	WindowTips(int num_y, int num_x, int by, int bx, char ch)
-		: WindowInterface(num_y, num_x, by, bx, ch) {}
+	WindowTips(int num_y, int num_x, int by, int bx, char ch);
 	~WindowTips() {}
+
+	void SetGeneralOnline(const char *online);
+	void SetRoomOnline(const char *online);
 };
 
 class WindowInput : public WindowInterface {

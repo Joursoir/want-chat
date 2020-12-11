@@ -24,7 +24,7 @@ public:
 	~Client();
 
 	virtual void HandleActions();
-	virtual void AddMessage(const char *msg, int type);
+	virtual void AddMessage(const char *msg, const char spec_char);
 private:
 	void AddCharToBuffer(char ch);
 	void RemoveCharFromBuffer();

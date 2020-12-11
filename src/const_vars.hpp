@@ -15,8 +15,10 @@ const int max_msg_len = oneline_len * 3; // 57*3 = 171
 const int lines_in_chat = 18;
 
 // === Message info === //
-const int usual_msg = 0; // no first char 
-const int system_msg = 1;
-const char system_char = '#';
+const char USUAL_CHAR = 0;
+const char SYSTEM_CHAR = '#';
+const char USERS_CHAR = ';';
+const char GONLINE_CHAR = '!';
+const char RONLINE_CHAR = '&';
 
 #endif

@@ -13,7 +13,7 @@ WindowChat::~WindowChat()
     }
 }
 
-void WindowChat::AddMessage(const char *msg, int type)
+void WindowChat::AddMessage(const char *msg, const char spec_ch)
 {
 	message *recent_msg = new message;
 
@@ -22,7 +22,7 @@ void WindowChat::AddMessage(const char *msg, int type)
 
 	strcpy(recent_msg->text, msg);
 	recent_msg->num_lines = lines;
-	recent_msg->type = type;
+	recent_msg->spec_char = spec_ch;
 
 	recent_msg->prev = first;
 	first = recent_msg;
@@ -71,7 +71,7 @@ void WindowChat::PrintMessage(int line, message *m)
 {
 	int need_print = m->num_lines;
 	while(need_print != 0) {
-		if(m->type == system_msg) wattron(w, A_ITALIC);
+		if(m->spec_char == SYSTEM_CHAR) wattron(w, A_ITALIC);
 		else wattron(w, A_BOLD);
 		wmove(w, line-need_print+1, 1);
 
@@ -80,7 +80,7 @@ void WindowChat::PrintMessage(int line, message *m)
 		memcpy(tmp, m->text + str, oneline_len);
 
 		wprintw(w, tmp);
-		if(m->type == system_msg) wattroff(w, A_ITALIC);
+		if(m->spec_char == SYSTEM_CHAR) wattroff(w, A_ITALIC);
 		else wattroff(w, A_BOLD);
 		
 		delete[] tmp;
@@ -90,6 +90,87 @@ void WindowChat::PrintMessage(int line, message *m)
 
 ////////////////////////////////////////////////////////////////////////
 
+WindowPlayers::WindowPlayers(int num_y, int num_x, int by, int bx, char ch)
+	: WindowInterface(num_y, num_x, by, bx, ch)
+{
+	mvwprintw(w, num_y-2, 1, "<- /prev  /next ->");
+	Update();
+}
+
+void WindowPlayers::SetPlayersList(const char *list)
+{
+	// clear line:
+	for(int j = 1; j < ny-2; j++) {
+		wmove(w, j, 1);
+		for(int i = 1; i < nx-1; i++)
+			waddch(w, ' ');
+	}
+	
+	int len_list = strlen(list);
+	int p = 1;
+
+	int start = 0;
+	for(int i = 0; i < len_list; i++) {
+        if(list[i] == ';')
+        {
+        	char *str = new char[max_name_len+1];
+        	int size = i - start;
+        	memcpy(str, list+start, size);
+        	str[size] = '\0';
+
+        	mvwprintw(w, p, 1, str);
+			start = i+1;
+			p++;
+			delete[] str;
+        }
+    }
+    Update();
+}
+
+////////////////////////////////////////////////////////////////////////
+
+WindowTips::WindowTips(int num_y, int num_x, int by, int bx, char ch)
+	: WindowInterface(num_y, num_x, by, bx, ch)
+{
+	mvwprintw(w, num_y-7, 1, "       Tips");
+	mvwprintw(w, num_y-6, 1, "Online: ");
+	mvwprintw(w, num_y-5, 1, "Online room: ");
+	mvwprintw(w, num_y-4, 1, "");
+	mvwprintw(w, num_y-3, 1, "ESC - exit");
+	mvwprintw(w, num_y-2, 1, "ENTER - send msg");
+	Update();
+}
+
+void WindowTips::SetGeneralOnline(const char *online)
+{
+	// clear line:
+	wmove(w, ny-6, 1);
+	for(int i = 1; i < nx-1; i++)
+		waddch(w, ' ');
+
+	// print online
+	char *str = new char[nx];
+	sprintf(str, "Online: %s", online);
+	mvwprintw(w, ny-6, 1, str);
+	Update();
+	delete[] str;
+	Update();
+}
+
+void WindowTips::SetRoomOnline(const char *online)
+{
+	// clear line:
+	wmove(w, ny-5, 1);
+	for(int i = 1; i < nx-1; i++)
+		waddch(w, ' ');
+
+	// print online
+	char *str = new char[nx];
+	sprintf(str, "Online room: %s", online);
+	mvwprintw(w, ny-5, 1, str);
+	Update();
+	delete[] str;
+}
 
 
 ////////////////////////////////////////////////////////////////////////

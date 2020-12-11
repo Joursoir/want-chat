@@ -71,9 +71,16 @@ void Client::HandleActions()
 	}
 }
 
-void Client::AddMessage(const char *msg, int type)
+void Client::AddMessage(const char *msg, const char spec_char)
 {
-	chat->AddMessage(msg, type);
+	if(spec_char == USERS_CHAR)
+		players->SetPlayersList(msg);
+	else if(spec_char == GONLINE_CHAR)
+		tips->SetGeneralOnline(msg);
+	else if(spec_char == RONLINE_CHAR)
+		tips->SetRoomOnline(msg);
+	else
+		chat->AddMessage(msg, spec_char);
 }
 
 void Client::AddCharToBuffer(char ch)
