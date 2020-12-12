@@ -53,4 +53,5 @@ ChatBaseOutput::ChatBaseOutput(int x, int y, int w, int h, const char *lb)
 	textfont(STD_FONT);
 	textsize(20);
 	textcolor(FL_WHITE);
+	value("");
 }
