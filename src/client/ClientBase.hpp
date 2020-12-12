@@ -21,7 +21,7 @@ public:
 	void BreakLoop() { exit_flag = true; }
 	
 	virtual void HandleActions() {}
-	virtual void AddMessage(const char *msg, int type) {}
+	virtual void AddMessage(const char *msg, const char spec_char) {}
 	void SendMessage(const char *msg);
 private:
 	int CreateSocket(const char* ip, int port);

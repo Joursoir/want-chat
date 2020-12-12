@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <ncurses.h>
 
+#include "../dimensions_client.hpp"
 #include "clui.hpp"
 
 WindowChat::~WindowChat()
@@ -18,7 +19,7 @@ void WindowChat::AddMessage(const char *msg, const char spec_ch)
 	message *recent_msg = new message;
 
 	int len = strlen(msg);
-	int lines = (len / oneline_len) + 1;
+	int lines = (len / CHAT_COLUMNS) + 1;
 
 	strcpy(recent_msg->text, msg);
 	recent_msg->num_lines = lines;
@@ -36,7 +37,7 @@ void WindowChat::ChatRedraw()
 		return;
 
 	Clear(false);
-	int available_lines = lines_in_chat;
+	int available_lines = CHAT_LINES;
 	bool remove = false;
 	message *tmp;
 
@@ -75,9 +76,9 @@ void WindowChat::PrintMessage(int line, message *m)
 		else wattron(w, A_BOLD);
 		wmove(w, line-need_print+1, 1);
 
-		char *tmp = new char[oneline_len];
-		int str = oneline_len * (m->num_lines - need_print);
-		memcpy(tmp, m->text + str, oneline_len);
+		char *tmp = new char[CHAT_COLUMNS];
+		int str = CHAT_COLUMNS * (m->num_lines - need_print);
+		memcpy(tmp, m->text + str, CHAT_COLUMNS);
 
 		wprintw(w, tmp);
 		if(m->spec_char == SYSTEM_CHAR) wattroff(w, A_ITALIC);
@@ -133,8 +134,8 @@ WindowTips::WindowTips(int num_y, int num_x, int by, int bx, char ch)
 	: WindowInterface(num_y, num_x, by, bx, ch)
 {
 	mvwprintw(w, num_y-7, 1, "       Tips");
-	mvwprintw(w, num_y-6, 1, "Online: ");
-	mvwprintw(w, num_y-5, 1, "Online room: ");
+	mvwprintw(w, TIPS_LINE_GONLINE, 1, "Online: ");
+	mvwprintw(w, TIPS_LINE_RONLINE, 1, "Online room: ");
 	mvwprintw(w, num_y-4, 1, "");
 	mvwprintw(w, num_y-3, 1, "ESC - exit");
 	mvwprintw(w, num_y-2, 1, "ENTER - send msg");
@@ -144,15 +145,14 @@ WindowTips::WindowTips(int num_y, int num_x, int by, int bx, char ch)
 void WindowTips::SetGeneralOnline(const char *online)
 {
 	// clear line:
-	wmove(w, ny-6, 1);
+	wmove(w, TIPS_LINE_GONLINE, 1);
 	for(int i = 1; i < nx-1; i++)
 		waddch(w, ' ');
 
 	// print online
 	char *str = new char[nx];
 	sprintf(str, "Online: %s", online);
-	mvwprintw(w, ny-6, 1, str);
-	Update();
+	mvwprintw(w, TIPS_LINE_GONLINE, 1, str);
 	delete[] str;
 	Update();
 }
@@ -160,16 +160,16 @@ void WindowTips::SetGeneralOnline(const char *online)
 void WindowTips::SetRoomOnline(const char *online)
 {
 	// clear line:
-	wmove(w, ny-5, 1);
+	wmove(w, TIPS_LINE_RONLINE, 1);
 	for(int i = 1; i < nx-1; i++)
 		waddch(w, ' ');
 
 	// print online
 	char *str = new char[nx];
 	sprintf(str, "Online room: %s", online);
-	mvwprintw(w, ny-5, 1, str);
-	Update();
+	mvwprintw(w, TIPS_LINE_RONLINE, 1, str);
 	delete[] str;
+	Update();
 }
 
 

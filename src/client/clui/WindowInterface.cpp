@@ -22,9 +22,9 @@ void WindowInterface::SetCursor(int y, int x)
 
 void WindowInterface::Clear(bool full)
 {
-	werase(this->GetWindow());
+	werase(GetWindow());
 	if(!full)
-		box(this->GetWindow(), ch_line, ch_line);
+		box(GetWindow(), ch_line, ch_line);
 }
 
 void WindowInterface::Update()

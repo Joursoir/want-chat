@@ -1,17 +1,11 @@
 #include <string.h>
 
+#include "../dimensions_client.hpp"
 #include "Client.hpp"
 #include "clui.hpp"
 
-#define CHAT_HEIGHT 20
-#define CHAT_WIDTH 59
-#define PLAYERS_WIDTH 20
-#define PLAYERS_HEIGHT 12
-#define TIPS_WIDTH 20
-#define TIPS_HEIGHT 8
-#define INPUT_HEIGHT 4
-#define INPUT_WIDTH 80
-
+const int input_lines = 2;
+const int input_columns = 78;
 const int key_enter = 10;
 const int key_escape = 27;
 const int key_backspace = 127;
@@ -19,10 +13,11 @@ const int key_backspace = 127;
 Client::Client(const char* ip, int port)
 	: ClientBase(ip, port), in_buf_used(0), exit_flag(false)
 {
-	chat = new WindowChat(CHAT_HEIGHT, CHAT_WIDTH, 0, 0, 0);
-	players = new WindowPlayers(PLAYERS_HEIGHT, PLAYERS_WIDTH, 0, 60, 0);
-	tips = new WindowTips(TIPS_HEIGHT, TIPS_WIDTH, PLAYERS_HEIGHT, 60, 0);
-	input = new WindowInput(INPUT_HEIGHT, INPUT_WIDTH, 20, 0, 0);
+	// y+2 and x+2 for outlines
+	chat = new WindowChat(CHAT_LINES+2, CHAT_COLUMNS+2, 0, 0, 0);
+	players = new WindowPlayers(PLAYERS_LINES+2, PLAYERS_COLUMNS+2, 0, CHAT_COLUMNS+2+1, 0);
+	tips = new WindowTips(TIPS_LINES+2, TIPS_COLUMNS+2, PLAYERS_LINES+2, CHAT_COLUMNS+2+1, 0);
+	input = new WindowInput(input_lines+2, input_columns+2, CHAT_LINES+2, 0, 0);
 }
 
 Client::~Client()

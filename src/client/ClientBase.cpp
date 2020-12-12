@@ -66,7 +66,7 @@ int ClientBase::Run()
 	else {
 		if(connection) {
 			strcpy(out_buffer, "Server closed the connection. Use ESC to exit.");
-			AddMessage(out_buffer, system_msg);
+			AddMessage(out_buffer, SYSTEM_CHAR);
 			connection = false;
 		}
 	}
@@ -79,14 +79,21 @@ int ClientBase::Run()
 				out_buffer[i] = 0;
 	
 				// in first char have may spec-symbol, check it:
-				int spec_msg = usual_msg;
+				char spec_char = USUAL_CHAR;
 				char *buf = out_buffer;
-				if(out_buffer[0] == system_char) {
-					spec_msg = system_msg;
-					buf += 1;
+				switch(out_buffer[0]) {
+					case SYSTEM_CHAR:
+					case USERS_CHAR:
+					case GONLINE_CHAR:
+					case RONLINE_CHAR: {
+						spec_char = out_buffer[0];
+						buf += 1;
+						break;
+					}
+					default: break;
 				}
 
-				AddMessage(buf, spec_msg);
+				AddMessage(buf, spec_char);
 				memmove(out_buffer, out_buffer + i + 1, out_buf_used - i - 1);
 				out_buf_used -= i + 1;
 				break;
