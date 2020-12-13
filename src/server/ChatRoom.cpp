@@ -41,7 +41,7 @@ void ChatRoom::HandleMessage(UserInfo *u, const char *str)
 	    char *msg = new char[max_msg_len];
 	    sprintf(msg, "%s: %s", u->GetName(), str);
 
-	    users->SendAllUsers(msg, 0, usual_msg);
+	    users->SendAllUsers(msg, 0, USUAL_CHAR);
 	    
 	    delete[] msg;
 	}
@@ -58,6 +58,8 @@ const char *ChatRoom::GetSecretPass()
 void ChatRoom::AddSession(UserInfo *u)
 {
 	users->AddUser(u);
+	users->SendAllUsersOnline(RONLINE_CHAR);
+	users->SendAllUsersName();
     if(code == std_id_lobby)
     	return;
 
@@ -92,6 +94,8 @@ void ChatRoom::RemoveSession(UserInfo *u)
 	}
 
 	users->RemoveUser(u);
+	users->SendAllUsersOnline(RONLINE_CHAR);
+	users->SendAllUsersName();
 	if(code != std_id_lobby && users->GetOnline() < 1)
 		the_server->DeleteRoom(code);
 }
@@ -140,6 +144,7 @@ void ChatRoom::Identification(UserInfo *u, const char *str)
 		}
 		// query to server
 
+		users->SendAllUsersName();
 		delete[] msg;
 		delete ans;
 	}

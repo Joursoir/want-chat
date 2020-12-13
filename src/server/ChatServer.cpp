@@ -117,6 +117,7 @@ void ChatServer::GotoLobby(ChatRoom *cur_room, UserInfo *u)
 {
     cur_room->RemoveSession(u);
     lobby->AddSession(u);
+    u->SetUserList(1);
     u->SetRoom(lobby);
 }
 
@@ -146,6 +147,9 @@ void ChatServer::CloseConnection(UserInfo *u)
     talkers->RemoveUser(u);
     the_selector->Remove(u);
     delete u;
+
+    talkers->SendAllUsersOnline(GONLINE_CHAR);
+    talkers->SendAllUsersName();
 }
 
 void ChatServer::Handle(bool r, bool w)
@@ -160,9 +164,10 @@ void ChatServer::Handle(bool r, bool w)
         return;
 
     UserInfo *u = new UserInfo(lobby, sd);
-    talkers->AddUser(u);
-    lobby->AddSession(u);
     the_selector->Add(u);
+    lobby->AddSession(u); // call SendAllUsersName in lobby
+    talkers->AddUser(u);
+    talkers->SendAllUsersOnline(GONLINE_CHAR);
 
     u->Send("Welcome to WantChat! What is your name?");
 }
@@ -179,13 +184,63 @@ StorageOfUsers::~StorageOfUsers()
 }
 
 void StorageOfUsers::SendAllUsers(const char *msg, UserInfo *except,
-    const int spec_msg)
+    const char spec_ch)
 {
-    CONSOLE_LOG("Send message all: %s\n", msg);
+    //CONSOLE_LOG("Send message all: %s\n", msg);
     item *p;
     for(p = first; p; p = p->next)
         if(p->u != except)
-            p->u->Send(msg, spec_msg);
+            p->u->Send(msg, spec_ch);
+}
+
+void StorageOfUsers::SendAllUsersOnline(const char spec_ch)
+{
+    if(spec_ch != GONLINE_CHAR && spec_ch != RONLINE_CHAR)
+        return;
+
+    char *temp = new char[6];
+    sprintf(temp, "%d", online);
+    SendAllUsers(temp, 0, spec_ch);
+    delete[] temp;
+}
+
+void StorageOfUsers::SendAllUsersName()
+{
+    item *p;
+    for(p = first; p; p = p->next)
+        SendUsersNameTo(p->u);
+}
+
+void StorageOfUsers::SendUsersNameTo(UserInfo *u)
+{
+    int num = u->GetUserList()*9 - 9;
+    while(num > online) {
+        num -= 9;
+        u->SetUserList(num/9);
+    }
+
+    char *buff_name = new char[(max_name_len+1)*9+1];
+    strcpy(buff_name, "");
+
+    item *s;
+    int jmp = 1, n = 1;
+    for(s = first; s; s = s->next) {
+        if(jmp <= num) {
+            jmp++;
+            continue;
+        }
+        if(n > 9)
+            break;
+
+        const char *name = s->u->GetName();
+        if(strcmp(name, STANDARD_USERNAME) != 0) {
+            strcat(buff_name, name);
+            strcat(buff_name, ";");
+            n++;
+        }
+    }
+    u->Send(buff_name, USERS_CHAR);
+    delete[] buff_name;
 }
 
 UserInfo *StorageOfUsers::SearchUserByName(const char *name)

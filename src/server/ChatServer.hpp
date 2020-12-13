@@ -29,7 +29,11 @@ public:
     ~StorageOfUsers();
 
     void SendAllUsers(const char *msg, UserInfo *except = 0,
-        const int spec_msg = system_msg);
+        const char spec_ch = SYSTEM_CHAR);
+    void SendAllUsersOnline(const char spec_ch);
+    
+    void SendAllUsersName();
+    void SendUsersNameTo(UserInfo *u);
     UserInfo *SearchUserByName(const char *name);
 
     void AddUser(UserInfo *u);

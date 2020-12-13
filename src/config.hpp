@@ -1,5 +1,5 @@
-#ifndef WANTCHATCONFIG_H
-#define WANTCHATCONFIG_H
+#ifndef WC_CONFIG_H
+#define WC_CONFIG_H
 
 // config for work in localhost:
 const char *SERVER_IP = "127.0.0.1";

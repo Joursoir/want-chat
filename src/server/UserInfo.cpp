@@ -2,7 +2,7 @@
 
 void UserInfo::SetRoom(ChatRoom *new_master)
 {
-    this->the_master = new_master;
+    the_master = new_master;
 }
 
 const char *UserInfo::GetName() const
@@ -28,4 +28,9 @@ void UserInfo::SetPassword(const char *pass)
 void UserInfo::SetStatus(const enum_status n_status)
 {
     state = n_status;
+}
+
+void UserInfo::SetUserList(int list)
+{
+    u_list = list;
 }

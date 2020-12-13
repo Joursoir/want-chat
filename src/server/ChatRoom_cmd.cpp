@@ -23,16 +23,18 @@ const int cmd_id_create = 1;
 const int cmd_id_join = 2;
 const int cmd_id_exit = 3;
 const int cmd_id_rooms = 4;
+const int cmd_id_prev = 5;
+const int cmd_id_next = 6;
 
-const int cmd_count = 5;
+const int cmd_count = 7;
 const struct cmd_info cmd[cmd_count] = {
 	{cmd_id_help, "/help", ChatRoom::Hash("/help"), USE_ANYWHERE, 0, "Usage: /help"},
 	{cmd_id_create, "/create", ChatRoom::Hash("/create"), USE_IN_LOBBY, 0, "Usage: /create [pass-key]"},
 	{cmd_id_join, "/join", ChatRoom::Hash("/join"), USE_IN_LOBBY, 1, "Usage: /join *id* [pass-key]"},
 	{cmd_id_exit, "/exit", ChatRoom::Hash("/exit"), USE_IN_ROOM, 0, "Usage: /exit"},
-	{cmd_id_rooms, "/rooms", ChatRoom::Hash("/rooms"), USE_IN_LOBBY, 0, "Usage: /rooms"} // print all public rooms
-
-	// IDEA: /clear - clear screen
+	{cmd_id_rooms, "/rooms", ChatRoom::Hash("/rooms"), USE_IN_LOBBY, 0, "Usage: /rooms"}, // print all public rooms
+	{cmd_id_prev, "/prev", ChatRoom::Hash("/prev"), USE_ANYWHERE, 0, "Usage: /prev"},
+	{cmd_id_next, "/next", ChatRoom::Hash("/next"), USE_ANYWHERE, 0, "Usage: /next"}
 };
 
 void ChatRoom::HandleCommand(UserInfo *u, int count,
@@ -117,6 +119,20 @@ void ChatRoom::HandleCommand(UserInfo *u, int count,
 			// in development
 			break;
 		}
+		case cmd_id_prev: {
+			int user_list = u->GetUserList();
+			if(user_list > 1) {
+				u->SetUserList(user_list-1);
+				users->SendUsersNameTo(u);
+			}
+			break;
+		}
+		case cmd_id_next: {
+			int user_list = u->GetUserList();
+			u->SetUserList(user_list+1);
+			users->SendUsersNameTo(u);
+			break;
+		}
 		default: break;
 	}
 }
@@ -141,21 +157,19 @@ char **ChatRoom::ParseToArg(const char *input, int &arrc)
 	int start = 0;
 	for(int i = 0; i < (int) strlen(input)+1; i++) {
 		if(input[i] == ' ' || input[i] == '\0' || input[i] == '\n') { // end
-			if(start == std_id_lobby)
-				continue;
+			/*if(code == std_id_lobby)
+				continue;*/
 
 			int size = i - start;
 			arr[arrc] = new char[size+1];
 			memcpy(arr[arrc], input + start, sizeof(char) * size);
 			arr[arrc][size] = '\0';
 			
-			start = -1;
+			start = i+1;
 			arrc++;
 			if(arrc == max_argv)
 				break;
 		}
-		else if(start == -1)
-			start = i;
 	}
 
 	arr[arrc] = 0;
