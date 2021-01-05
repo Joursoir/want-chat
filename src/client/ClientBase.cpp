@@ -5,10 +5,9 @@
 	#include <arpa/inet.h> // for iten_aton
 	#include <sys/types.h> // for bind, connect
 	#include <sys/socket.h> // for bind, connect
+	#include <fcntl.h>
+	#include <cerrno>
 #endif
-#include <fcntl.h>
-#include <cerrno>
-#include <stdio.h>
 
 #include "ClientBase.hpp"
 
@@ -80,6 +79,10 @@ int ClientBase::InitSocket(const char* ip, int port)
 		closesocket(fd);
 		return -1;
 	}
+
+	// nonblocking socket mode:
+	u_long imode = 1;
+	ioctlsocket(fd, FIONBIO, &imode);
 #else // linux socket:
 	struct sockaddr_in server_address;
 
@@ -103,6 +106,7 @@ int ClientBase::InitSocket(const char* ip, int port)
 		return -1;
 	}
 
+	// nonblocking socket mode:
 	int flags = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
@@ -115,12 +119,17 @@ int ClientBase::Run()
 		return 0;
 	HandleActions();
 
-	int recive = read(fd, out_buffer+out_buf_used,
-		sizeof(out_buffer)-out_buf_used);
+	int recive = recv(fd, out_buffer+out_buf_used,
+		sizeof(out_buffer)-out_buf_used, 0);
 
 	if(recive < 0) {
+#ifdef _WIN32
+		if(WSAGetLastError() != WSAEINTR && WSAGetLastError() != WSAEWOULDBLOCK)
+			return 0;
+#else
 		if(errno != EINTR && errno != EAGAIN) 
 			return 0;
+#endif
 	}
 	else if(recive > 0)
 		out_buf_used += recive;
@@ -171,5 +180,5 @@ void ClientBase::SendMessage(const char *msg)
 	strcpy(buf, msg);
 	buf[len-1] = '\n';
 
-	write(fd, buf, len * sizeof(char));
+	send(fd, buf, len * sizeof(char), 0);
 }

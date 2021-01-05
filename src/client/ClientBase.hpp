@@ -2,7 +2,7 @@
 #define WC_CLIENTBASE_H
 
 #ifdef _WIN32
-	#include <winsock.h>
+	#include <winsock2.h>
 #endif
 
 #include "../const_vars.hpp"
