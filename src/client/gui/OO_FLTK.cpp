@@ -28,7 +28,7 @@ ChatInput::ChatInput(int x, int y, int w, int h,
 	maximum_size(max_usermsg_len);
 }
 
-void ChatInput::SendMessage(void *user)
+void ChatInput::SendMsg(void *user)
 {
 	if(strlen(value()) < 1)
 		return;
@@ -36,7 +36,6 @@ void ChatInput::SendMessage(void *user)
 	Client *cl = (Client *)user;
 	if(cl != 0) { // send message to server
 		const char *message = value();
-		printf("U sent: %s\n", message);
 		cl->SendMessage(message);
 	}
 

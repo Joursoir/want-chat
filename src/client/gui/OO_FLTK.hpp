@@ -21,11 +21,11 @@ class ChatInput : public Fl_Input {
 public:
 	ChatInput(int x, int y, int w, int h, 
 		const char *lb = 0, Client *user = 0);
-	virtual ~ChatInput() {}
-	virtual void SendMessage(void *user);
+	~ChatInput() {}
+	void SendMsg(void *user);
 private:
 	static void CallbackFunction(Fl_Widget *w, void *user)
-		{ static_cast<ChatInput*>(w)->SendMessage(user); }
+		{ static_cast<ChatInput*>(w)->SendMsg(user); }
 };
 
 class ChatBaseOutput : public Fl_Output {

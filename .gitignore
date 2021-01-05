@@ -3,4 +3,5 @@ src/client/clui/client
 src/client/gui/client
 src/server/server
 src/server/hash*
+src/config.hpp
 *.o

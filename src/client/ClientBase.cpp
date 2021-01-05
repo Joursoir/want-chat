@@ -1,51 +1,112 @@
 #include <string.h>
 #include <unistd.h> 
-#include <netinet/in.h> // for sockaddr_in
-#include <arpa/inet.h> // for iten_aton
-#include <sys/types.h> // for bind, connect
-#include <sys/socket.h> // for bind, connect
+#ifndef _WIN32
+	#include <netinet/in.h> // for sockaddr_in
+	#include <arpa/inet.h> // for iten_aton
+	#include <sys/types.h> // for bind, connect
+	#include <sys/socket.h> // for bind, connect
+#endif
 #include <fcntl.h>
 #include <cerrno>
+#include <stdio.h>
 
 #include "ClientBase.hpp"
 
 ClientBase::ClientBase(const char* ip, int port)
 	: out_buf_used(0), exit_flag(false), connection(true)
 {
-	fd = CreateSocket(ip, port);
+	if(InitSocket(ip, port) == -1) {
+		exit(5);
+#ifdef _WIN32
+		fd = INVALID_SOCKET;
+#else
+		fd = -1;
+#endif
+	}
 }
 
 ClientBase::~ClientBase()
 {
+#ifdef _WIN32
+	if(fd != INVALID_SOCKET) {
+		closesocket(fd);
+	}
+	WSACleanup();
+#else
 	if(fd != -1)
 		close(fd);
+#endif
 }
 
-int ClientBase::CreateSocket(const char* ip, int port)
+int ClientBase::ConstuctorError() const
 {
-	int client = socket(AF_INET, SOCK_STREAM, 0);
-	if(client == -1) return -1;
+#ifdef _WIN32
+	return fd == INVALID_SOCKET ? 1 : 0;
+#else
+	return fd == -1 ? 1 : 0;
+#endif
+}
+
+/* 
+ * call bind optional, the system chooses
+ * the address automatically
+ */
+int ClientBase::InitSocket(const char* ip, int port)
+{
+	int result;
+	int opt = 1; // for remove "port sticking"
+	int ifamily = AF_INET;
+	int itype = SOCK_STREAM;
+	int iprotocol = 0;
+
+#ifdef _WIN32 // windows socket
+	WSADATA wsaData;
+	SOCKADDR_IN server_address;
+
+	// initialize winsock:
+	result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	if(result != 0) return -1;
+
+	fd = socket(ifamily, itype, iprotocol);
+	if(fd == INVALID_SOCKET)  return -1;
+
+	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *) &opt, sizeof(opt));
+
+	server_address.sin_family = ifamily;
+	server_address.sin_addr.s_addr = inet_addr(ip);
+	server_address.sin_port = htons(port);
+	result = connect(fd, (SOCKADDR *) &server_address, sizeof(server_address));
+	if(result == SOCKET_ERROR) {
+		closesocket(fd);
+		return -1;
+	}
+#else // linux socket:
+	struct sockaddr_in server_address;
+
+	fd = socket(ifamily, itype, iprotocol);
+	if(fd == -1) return -1;
 
 	// remove "port sticking" aka socket in TIME_WAIT
-	int opt = 1;
-	setsockopt(client, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-	/* call bind optional, the system chooses
-		the address automatically */
-
-	struct sockaddr_in server_adress;
 	server_adress.sin_family = AF_INET;
 	server_adress.sin_port = htons(port);
-	if(!inet_aton(ip, &(server_adress.sin_addr))) return -1;
+	if(!inet_aton(ip, &(server_adress.sin_addr))) {
+		close(fd);
+		return -1;
+	}
 	
-	int res = connect(client, (struct sockaddr*) &server_adress,
+	result = connect(client, (struct sockaddr*) &server_adress,
 		sizeof(server_adress));
-	if(res == -1) return -1;
+	if(result == -1) {
+		close(fd);
+		return -1;
+	}
 
-	int flags = fcntl(client, F_GETFL, 0);
-	fcntl(client, F_SETFL, flags | O_NONBLOCK);
-
-	return client;
+	int flags = fcntl(fd, F_GETFL, 0);
+	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#endif
+	return 0;
 }
 
 int ClientBase::Run()
