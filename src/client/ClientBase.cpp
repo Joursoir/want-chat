@@ -15,7 +15,6 @@ ClientBase::ClientBase(const char* ip, int port)
 	: out_buf_used(0), exit_flag(false), connection(true)
 {
 	if(InitSocket(ip, port) == -1) {
-		exit(5);
 #ifdef _WIN32
 		fd = INVALID_SOCKET;
 #else
@@ -92,15 +91,15 @@ int ClientBase::InitSocket(const char* ip, int port)
 	// remove "port sticking" aka socket in TIME_WAIT
 	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-	server_adress.sin_family = AF_INET;
-	server_adress.sin_port = htons(port);
-	if(!inet_aton(ip, &(server_adress.sin_addr))) {
+	server_address.sin_family = AF_INET;
+	server_address.sin_port = htons(port);
+	if(!inet_aton(ip, &(server_address.sin_addr))) {
 		close(fd);
 		return -1;
 	}
 	
-	result = connect(client, (struct sockaddr*) &server_adress,
-		sizeof(server_adress));
+	result = connect(fd, (struct sockaddr*) &server_address,
+		sizeof(server_address));
 	if(result == -1) {
 		close(fd);
 		return -1;
